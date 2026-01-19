@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Outputs / personal data
+all_photos/
+_DUPLICATES/
+*.csv
+leftovers*.csv
+
+# OS
+Thumbs.db
+.DS_Store
