@@ -103,8 +103,8 @@ Do not open File Explorer in the source folders while running
 ```yaml
 ROOT/
   all_photos/
-    2012/
-    2013/
+    2020/
+    2021/
     ...
     _DUPLICATES/
 ```
