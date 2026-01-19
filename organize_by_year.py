@@ -8,7 +8,12 @@ from pathlib import Path
 # 20160817_124851_01.jpg
 NAME_RE = re.compile(r"^(?P<year>\d{4})\d{4}_\d{6}(?:_\d{2})?\.[A-Za-z0-9]+$")
 
-TARGET_EXTS = {".jpg", ".jpeg", ".png", ".mp4"}
+TARGET_EXTS = {
+    ".jpg", ".jpeg", ".png",
+    ".cr2", ".dng",
+    ".mov", ".avi", ".3gp",
+    ".gif", ".mp4",
+}
 
 
 def log(msg: str) -> None:
