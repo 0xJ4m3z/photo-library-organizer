@@ -1,7 +1,7 @@
 # Photo Library Organizer
 
-A Windows-friendly Python tool to consolidate, rename, de-duplicate, and organize
-large photo/video libraries safely.
+A Windows-friendly Python tool made to safely organize large photo and video libraries by consolidating files, standardizing filenames, and isolating duplicates when found.
+
 
 **No re-encoding. No quality loss.**  
 Files are only **moved and renamed**.
