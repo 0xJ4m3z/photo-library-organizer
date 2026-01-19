@@ -1,4 +1,4 @@
-# Photo Library Organizer
+# `Photo Library Organizer`
 
 A Windows-friendly Python tool made to safely organize large photo and video libraries by consolidating files, standardizing filenames, and isolating duplicates when found.
 
@@ -10,9 +10,9 @@ Files are only **moved and renamed**.
 
 ## What it does
 
-- Recursively scans a drive or folder for photos & videos
+- Scans a drive or folder for photos & videos
 - Reads capture timestamps using **ExifTool**
-- Renames files to a clean format: YYYYMMDD_HHMMSS.ext
+- Renames files to a consistent format: YYYYMMDD_HHMMSS.ext
 
 
 - Avoids filename collisions (`_01`, `_02`, …)
