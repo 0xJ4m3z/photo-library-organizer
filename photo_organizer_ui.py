@@ -71,8 +71,8 @@ class PhotoOrganizerWindow(QMainWindow):
         super().__init__()
         self.process: QProcess | None = None
         self.setWindowTitle("Photo Library Organizer")
-        self.resize(1320, 860)
-        self.setMinimumSize(980, 680)
+        self.resize(1280, 720)
+        self.setMinimumSize(1100, 680)
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -90,10 +90,10 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(286)
+        sidebar.setFixedWidth(260)
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(24, 26, 24, 24)
-        layout.setSpacing(22)
+        layout.setContentsMargins(24, 24, 24, 18)
+        layout.setSpacing(16)
 
         brand = QHBoxLayout()
         brand.setSpacing(12)
@@ -147,8 +147,8 @@ class PhotoOrganizerWindow(QMainWindow):
         workspace = QFrame()
         workspace.setObjectName("workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(28, 26, 28, 26)
-        layout.setSpacing(18)
+        layout.setContentsMargins(28, 24, 18, 18)
+        layout.setSpacing(12)
 
         header = QHBoxLayout()
         header.setSpacing(20)
@@ -178,7 +178,7 @@ class PhotoOrganizerWindow(QMainWindow):
         top_grid.addWidget(self._build_preview_panel(), 0, 1)
         top_grid.setColumnStretch(0, 9)
         top_grid.setColumnStretch(1, 11)
-        layout.addLayout(top_grid, 2)
+        layout.addLayout(top_grid, 0)
 
         lower_grid = QGridLayout()
         lower_grid.setSpacing(18)
@@ -186,17 +186,18 @@ class PhotoOrganizerWindow(QMainWindow):
         lower_grid.addWidget(self._build_summary_panel(), 0, 1)
         lower_grid.setColumnStretch(0, 10)
         lower_grid.setColumnStretch(1, 8)
-        layout.addLayout(lower_grid, 1)
+        layout.addLayout(lower_grid, 0)
 
-        layout.addWidget(self._build_log_panel(), 2)
+        layout.addWidget(self._build_log_panel(), 1)
         return workspace
 
     def _build_scan_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
+        panel.setMinimumHeight(160)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(16)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(10)
 
         layout.addLayout(self._section_heading("Source", "Library Scan", "ExifTool ready"))
 
@@ -214,12 +215,15 @@ class PhotoOrganizerWindow(QMainWindow):
         path_row.addWidget(browse)
         layout.addLayout(path_row)
 
-        stats = QGridLayout()
-        stats.setSpacing(10)
-        stats.addWidget(StatCard("18,426", "media files"), 0, 0)
-        stats.addWidget(StatCard("12", "formats"), 0, 1)
-        stats.addWidget(StatCard("384 GB", "queued"), 1, 0)
-        stats.addWidget(StatCard("94.8%", "timestamp hit rate"), 1, 1)
+        stats = QHBoxLayout()
+        stats.setSpacing(8)
+        for value, label in (
+            ("18,426", "files"),
+            ("12", "formats"),
+            ("384 GB", "queued"),
+            ("94.8%", "timestamps"),
+        ):
+            stats.addWidget(StatCard(value, label))
         layout.addLayout(stats)
 
         self.phase_label = QLabel("Ready")
@@ -244,6 +248,7 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_preview_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("previewPanel")
+        panel.setMinimumHeight(160)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -279,9 +284,10 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_options_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
+        panel.setMinimumHeight(152)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 16, 20, 14)
+        layout.setSpacing(10)
         layout.addLayout(self._section_heading("Rules", "Organizer Options", "Save preset"))
 
         self.organize_year = QCheckBox("Organize into year folders")
@@ -290,9 +296,12 @@ class PhotoOrganizerWindow(QMainWindow):
         self.csv_log.setChecked(True)
         self.prefer_newest = QCheckBox("Prefer newest timestamp")
 
-        layout.addWidget(OptionRow(self.organize_year, "Move consolidated files into YYYY folders after the main pass."))
-        layout.addWidget(OptionRow(self.csv_log, "Write every move, rename, duplicate, and skip event to run.csv."))
-        layout.addWidget(OptionRow(self.prefer_newest, "Use the latest EXIF candidate instead of the oldest timestamp."))
+        check_row = QHBoxLayout()
+        check_row.setSpacing(10)
+        for checkbox in (self.organize_year, self.csv_log, self.prefer_newest):
+            checkbox.setObjectName("optionCheck")
+            check_row.addWidget(checkbox)
+        layout.addLayout(check_row)
 
         dup_row = QHBoxLayout()
         dup_label = QLabel("Duplicate action")
@@ -308,9 +317,10 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_summary_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
+        panel.setMinimumHeight(152)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 16, 20, 14)
+        layout.setSpacing(8)
         layout.addLayout(self._section_heading("Live Preview", "Run Summary", "ETA 00:08:12"))
 
         for name, value in (
@@ -322,7 +332,7 @@ class PhotoOrganizerWindow(QMainWindow):
             row = QFrame()
             row.setObjectName("summaryRow")
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(14, 12, 14, 12)
+            row_layout.setContentsMargins(14, 7, 14, 7)
             label = QLabel(name)
             label.setObjectName("summaryLabel")
             number = QLabel(value)
@@ -336,9 +346,10 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_log_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
+        panel.setMinimumHeight(174)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 16, 20, 14)
+        layout.setSpacing(8)
         layout.addLayout(self._section_heading("CSV Log", "Recent Actions", "run.csv"))
 
         self.log_table = QTableWidget(0, 5)
@@ -352,7 +363,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.console = QPlainTextEdit()
         self.console.setObjectName("console")
         self.console.setReadOnly(True)
-        self.console.setMaximumHeight(94)
+        self.console.setMaximumHeight(54)
         self.console.setPlainText("Ready. Configure options and run a dry scan.")
         layout.addWidget(self.console)
         return panel
@@ -536,9 +547,8 @@ class PhotoOrganizerWindow(QMainWindow):
             }
             #headline {
                 color: #172026;
-                font-size: 34px;
+                font-size: 28px;
                 font-weight: 900;
-                line-height: 1.05;
             }
             #panel, #safetyPanel {
                 background: #ffffff;
@@ -567,7 +577,7 @@ class PhotoOrganizerWindow(QMainWindow):
             }
             #overlayTitle {
                 color: #ffffff;
-                font-size: 18px;
+                font-size: 17px;
                 font-weight: 900;
             }
             #overlayMeta {
@@ -576,7 +586,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 font-weight: 800;
             }
             QPushButton {
-                min-height: 38px;
+                min-height: 34px;
                 padding: 0 14px;
                 border-radius: 8px;
                 font-weight: 800;
@@ -604,13 +614,13 @@ class PhotoOrganizerWindow(QMainWindow):
                 background: rgba(31, 157, 104, 31);
                 color: #10764b;
                 border-radius: 14px;
-                padding: 6px 10px;
+                padding: 5px 10px;
                 font-size: 12px;
                 font-weight: 900;
             }
             #sectionTitle {
                 color: #172026;
-                font-size: 19px;
+                font-size: 17px;
                 font-weight: 900;
             }
             #fieldLabel, #panelLabel {
@@ -623,7 +633,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 font-size: 13px;
             }
             #pathInput, #combo {
-                min-height: 40px;
+                min-height: 34px;
                 border: 1px solid #d9e0e5;
                 border-radius: 8px;
                 background: #f8fafb;
@@ -636,19 +646,23 @@ class PhotoOrganizerWindow(QMainWindow):
                 border: 1px solid #d9e0e5;
                 border-radius: 8px;
             }
+            #statCard {
+                min-height: 46px;
+                max-height: 50px;
+            }
             #statValue {
                 color: #172026;
-                font-size: 24px;
+                font-size: 17px;
                 font-weight: 900;
             }
             #statLabel {
                 color: #65717a;
-                font-size: 13px;
+                font-size: 11px;
                 font-weight: 700;
             }
             #optionCheck {
                 color: #172026;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 900;
             }
             #summaryValue {
@@ -657,8 +671,8 @@ class PhotoOrganizerWindow(QMainWindow):
                 font-weight: 900;
             }
             #progressTrack {
-                min-height: 12px;
-                max-height: 12px;
+                min-height: 10px;
+                max-height: 10px;
                 background: #dde5ea;
                 border-radius: 6px;
             }
