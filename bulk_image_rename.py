@@ -136,15 +136,16 @@ def build_base_name(ts: datetime) -> str:
     return ts.strftime("%Y%m%d_%H%M%S")
 
 
-def ensure_unique_name(dest_dir: Path, base_stem: str, ext: str) -> Path:
+def ensure_unique_name(dest_dir: Path, base_stem: str, ext: str, reserved: Optional[Set[Path]] = None) -> Path:
+    reserved = reserved or set()
     ext = ext.lower()
     target = dest_dir / f"{base_stem}{ext}"
-    if not target.exists():
+    if not target.exists() and target not in reserved:
         return target
     i = 1
     while True:
         candidate = dest_dir / f"{base_stem}_{i:02d}{ext}"
-        if not candidate.exists():
+        if not candidate.exists() and candidate not in reserved:
             return candidate
         i += 1
 
@@ -404,6 +405,8 @@ def main() -> None:
 
     log("Phase C: processing (move/rename/dedupe)...")
     seen_candidates: Dict[Tuple[str, int], Path] = {}
+    reserved_targets: Set[Path] = set()
+    reserved_dups: Set[Path] = set()
 
     moved = renamed = duplicates = skipped = 0
     done = 0
@@ -428,18 +431,18 @@ def main() -> None:
 
                 if is_properly_named(p.name):
                     target_path = dest_root / p.name
-                    if target_path.exists():
+                    if target_path.exists() or target_path in reserved_targets:
                         stem = target_path.stem
                         ext = target_path.suffix
                         i = 1
                         while True:
                             cand = dest_root / f"{stem}_{i:02d}{ext}"
-                            if not cand.exists():
+                            if not cand.exists() and cand not in reserved_targets:
                                 target_path = cand
                                 break
                             i += 1
                 else:
-                    target_path = ensure_unique_name(dest_root, base, p.suffix)
+                    target_path = ensure_unique_name(dest_root, base, p.suffix, reserved_targets)
 
                 if key in seen_candidates:
                     kept = seen_candidates[key]
@@ -465,13 +468,13 @@ def main() -> None:
                                 continue
 
                             dup_target = dup_root / p.name
-                            if dup_target.exists():
+                            if dup_target.exists() or dup_target in reserved_dups:
                                 stem = dup_target.stem
                                 ext = dup_target.suffix
                                 i = 1
                                 while True:
                                     cand = dup_root / f"{stem}_{i:02d}{ext}"
-                                    if not cand.exists():
+                                    if not cand.exists() and cand not in reserved_dups:
                                         dup_target = cand
                                         break
                                     i += 1
@@ -481,6 +484,7 @@ def main() -> None:
                             if csv_writer:
                                 csv_writer.writerow(["DUP_MOVE", str(p), str(dup_target), ts.isoformat(sep=" "), source, size, str(kept), "hash_match"])
                                 csv_file.flush()
+                            reserved_dups.add(dup_target)
                             continue
 
                 action = "MOVE+RENAME" if target_path.name != p.name else "MOVE"
@@ -495,6 +499,7 @@ def main() -> None:
                     renamed += 1
 
                 seen_candidates[key] = target_path
+                reserved_targets.add(target_path)
 
                 if csv_writer:
                     csv_writer.writerow([action, str(p), str(target_path), ts.isoformat(sep=" "), source, size, "", ""])
