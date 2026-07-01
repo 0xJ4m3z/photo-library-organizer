@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt
-from PySide6.QtGui import QPixmap, QTextCursor
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
     QSizePolicy,
     QTableWidget,
@@ -361,15 +360,12 @@ class PhotoOrganizerWindow(QMainWindow):
         self.log_table.verticalHeader().setVisible(False)
         self.log_table.horizontalHeader().setStretchLastSection(True)
         self.log_table.setAlternatingRowColors(True)
-        self.log_table.setMinimumHeight(116)
+        self.log_table.setMinimumHeight(104)
         layout.addWidget(self.log_table)
 
-        self.console = QPlainTextEdit()
-        self.console.setObjectName("console")
-        self.console.setReadOnly(True)
-        self.console.setMaximumHeight(42)
-        self.console.setPlainText("Ready. Configure options and run a dry scan.")
-        layout.addWidget(self.console)
+        self.status_line = QLabel("Ready. Configure options and run a dry scan.")
+        self.status_line.setObjectName("statusLine")
+        layout.addWidget(self.status_line)
         return panel
 
     def _section_heading(self, eyebrow_text: str, title_text: str, pill_text: str) -> QHBoxLayout:
@@ -463,7 +459,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.process.readyReadStandardError.connect(self._read_stderr)
         self.process.finished.connect(self._process_finished)
 
-        self.console.clear()
+        self.status_line.setText("Starting organizer...")
         self.phase_label.setText("Starting organizer")
         self._set_progress(0)
         self.run_button.setText("Stop run")
@@ -483,9 +479,9 @@ class PhotoOrganizerWindow(QMainWindow):
         self._append_console(text)
 
     def _append_console(self, text: str) -> None:
-        self.console.moveCursor(QTextCursor.MoveOperation.End)
-        self.console.insertPlainText(text)
-        self.console.ensureCursorVisible()
+        lines = [line.strip() for line in text.replace("\r", "\n").splitlines() if line.strip()]
+        if lines:
+            self.status_line.setText(lines[-1][-150:])
 
     def _update_progress_from_text(self, text: str) -> None:
         for match in PROGRESS_RE.finditer(text.replace("\r", "\n")):
@@ -700,12 +696,12 @@ class PhotoOrganizerWindow(QMainWindow):
                 padding: 8px;
                 font-weight: 900;
             }
-            #console {
+            #statusLine {
                 background: #111820;
                 color: #dbe7ee;
                 border: 0;
                 border-radius: 8px;
-                padding: 10px;
+                padding: 7px 10px;
                 font-family: Consolas, monospace;
             }
             """
