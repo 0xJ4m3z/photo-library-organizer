@@ -38,14 +38,14 @@ SAMPLE_IMPORT = SAMPLE_ROOT / "raw_import"
 PROGRESS_RE = re.compile(r"\[PROC\]\s+([\d,]+)/([\d,]+)\s+\(\s*([\d.]+)%\)")
 TARGET_EXTS = {".jpg", ".jpeg", ".png", ".cr2", ".dng", ".mov", ".avi", ".3gp", ".gif", ".mp4"}
 SAMPLE_FILES = [
-    ("IMG_4382.JPG", 0),
+    ("IMG_4382.png", 0),
     ("beach-sunset.png", 48),
-    ("birthday_table.jpeg", 96),
-    ("city-night.MOV", 144),
-    ("dog-park.jpg", 192),
-    ("concert_lights.mp4", 240),
-    ("snowy-cabin.PNG", 288),
-    ("family-scan.gif", 336),
+    ("birthday-table.png", 96),
+    ("city-night.png", 144),
+    ("dog-park.png", 192),
+    ("concert-lights.png", 240),
+    ("snowy-cabin.png", 288),
+    ("family-scan.png", 336),
 ]
 
 
@@ -332,6 +332,8 @@ class PhotoOrganizerWindow(QMainWindow):
             target = SAMPLE_IMPORT / filename
             if source:
                 shutil.copyfile(source, target)
+                with target.open("ab") as handle:
+                    handle.write(f"\n# sample-file-{idx}\n".encode("ascii"))
             else:
                 target.write_text(f"sample media placeholder {idx}\n", encoding="utf-8")
             ts = base_time + (minute_offset * 60)

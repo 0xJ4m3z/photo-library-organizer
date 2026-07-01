@@ -248,6 +248,13 @@ def organize_dest_by_year(dest_root: Path, dry_run: bool, progress_every: int = 
         log("DRY RUN ENABLED — no files will be moved")
     log("")
 
+    if not dest_root.exists():
+        if dry_run:
+            log("Destination folder does not exist yet because this is a dry run.")
+            log("Skipping organize-by-year preview for the destination folder.\n")
+            return
+        raise FileNotFoundError(f"Destination folder does not exist: {dest_root}")
+
     files = [p for p in dest_root.iterdir() if p.is_file() and p.suffix.lower() in TARGET_EXTS]
     total = len(files)
     log(f"Found {total:,} files in destination root to organize.\n")
