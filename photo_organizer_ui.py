@@ -1,6 +1,8 @@
 import csv
 import re
+import shutil
 import sys
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
@@ -31,7 +33,20 @@ from PySide6.QtWidgets import (
 ROOT = Path(__file__).resolve().parent
 SCRIPT = ROOT / "bulk_image_rename.py"
 SAMPLE_IMAGE = ROOT / "assets" / "gallery-contact-sheet.png"
+SAMPLE_ROOT = ROOT / "sample_images"
+SAMPLE_IMPORT = SAMPLE_ROOT / "raw_import"
 PROGRESS_RE = re.compile(r"\[PROC\]\s+([\d,]+)/([\d,]+)\s+\(\s*([\d.]+)%\)")
+TARGET_EXTS = {".jpg", ".jpeg", ".png", ".cr2", ".dng", ".mov", ".avi", ".3gp", ".gif", ".mp4"}
+SAMPLE_FILES = [
+    ("IMG_4382.JPG", 0),
+    ("beach-sunset.png", 48),
+    ("birthday_table.jpeg", 96),
+    ("city-night.MOV", 144),
+    ("dog-park.jpg", 192),
+    ("concert_lights.mp4", 240),
+    ("snowy-cabin.PNG", 288),
+    ("family-scan.gif", 336),
+]
 
 
 class StatCard(QFrame):
@@ -73,8 +88,11 @@ class PhotoOrganizerWindow(QMainWindow):
         super().__init__()
         self.process: QProcess | None = None
         self.latest_csv_path: Path | None = None
+        self.nav_buttons: dict[str, QPushButton] = {}
+        self.sections: dict[str, QWidget] = {}
+        self._ensure_sample_library()
         self.setWindowTitle("Photo Library Organizer")
-        self.resize(1320, 820)
+        self.resize(1280, 760)
         self.setMinimumSize(1100, 680)
 
         root = QWidget()
@@ -89,6 +107,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self._apply_styles()
         self._load_sample_image()
         self._populate_demo_rows()
+        self._connect_nav()
 
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
@@ -123,6 +142,7 @@ class PhotoOrganizerWindow(QMainWindow):
         ):
             button = QPushButton(name)
             button.setObjectName("navActive" if active else "navButton")
+            self.nav_buttons[name.lower()] = button
             layout.addWidget(button)
 
         layout.addStretch(1)
@@ -136,11 +156,15 @@ class PhotoOrganizerWindow(QMainWindow):
         safety_label.setObjectName("panelLabel")
         self.dry_run = QCheckBox("Dry run first")
         self.dry_run.setChecked(True)
+        reset_sample = QPushButton("Reset sample")
+        reset_sample.setObjectName("ghostButton")
+        reset_sample.clicked.connect(self.reset_sample_library)
         note = QLabel("Preview moves, renames, duplicate actions, and CSV output before touching the library.")
         note.setWordWrap(True)
         note.setObjectName("mutedText")
         safety_layout.addWidget(safety_label)
         safety_layout.addWidget(self.dry_run)
+        safety_layout.addWidget(reset_sample)
         safety_layout.addWidget(note)
         layout.addWidget(safety)
 
@@ -186,22 +210,34 @@ class PhotoOrganizerWindow(QMainWindow):
 
         top_grid = QGridLayout()
         top_grid.setSpacing(18)
-        top_grid.addWidget(self._build_scan_panel(), 0, 0)
-        top_grid.addWidget(self._build_preview_panel(), 0, 1)
+        self.scan_panel = self._build_scan_panel()
+        self.preview_panel = self._build_preview_panel()
+        top_grid.addWidget(self.scan_panel, 0, 0)
+        top_grid.addWidget(self.preview_panel, 0, 1)
         top_grid.setColumnStretch(0, 9)
         top_grid.setColumnStretch(1, 11)
         layout.addLayout(top_grid, 0)
 
         lower_grid = QGridLayout()
         lower_grid.setSpacing(18)
-        lower_grid.addWidget(self._build_options_panel(), 0, 0)
-        lower_grid.addWidget(self._build_summary_panel(), 0, 1)
+        self.options_panel = self._build_options_panel()
+        self.summary_panel = self._build_summary_panel()
+        lower_grid.addWidget(self.options_panel, 0, 0)
+        lower_grid.addWidget(self.summary_panel, 0, 1)
         lower_grid.setColumnStretch(0, 10)
         lower_grid.setColumnStretch(1, 8)
         layout.addLayout(lower_grid, 0)
 
-        layout.addWidget(self._build_log_panel(), 1)
+        self.log_panel = self._build_log_panel()
+        layout.addWidget(self.log_panel, 1)
         scroll_area.setWidget(workspace)
+        self.scroll_area = scroll_area
+        self.sections = {
+            "scan": self.scan_panel,
+            "rules": self.options_panel,
+            "duplicates": self.summary_panel,
+            "logs": self.log_panel,
+        }
         return scroll_area
 
     def _build_scan_panel(self) -> QWidget:
@@ -219,7 +255,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addWidget(path_label)
 
         path_row = QHBoxLayout()
-        self.root_path = QLineEdit(str(Path.home() / "Pictures"))
+        self.root_path = QLineEdit(str(SAMPLE_ROOT))
         self.root_path.setObjectName("pathInput")
         browse = QPushButton("Browse")
         browse.setObjectName("ghostButton")
@@ -257,6 +293,67 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addWidget(self.progress)
 
         return panel
+
+    def _connect_nav(self) -> None:
+        for key, button in self.nav_buttons.items():
+            button.clicked.connect(lambda _checked=False, section=key: self.scroll_to_section(section))
+
+    def scroll_to_section(self, section: str) -> None:
+        target = self.sections.get(section)
+        if not target:
+            return
+        for key, button in self.nav_buttons.items():
+            button.setObjectName("navActive" if key == section else "navButton")
+            button.style().unpolish(button)
+            button.style().polish(button)
+        self.scroll_area.ensureWidgetVisible(target, 16, 16)
+
+    def _has_sample_source_media(self) -> bool:
+        if not SAMPLE_ROOT.exists():
+            return False
+        for path in SAMPLE_ROOT.rglob("*"):
+            if "all_photos" in path.parts:
+                continue
+            if path.is_file() and path.suffix.lower() in TARGET_EXTS:
+                return True
+        return False
+
+    def _ensure_sample_library(self, force: bool = False) -> None:
+        if force and SAMPLE_ROOT.exists():
+            shutil.rmtree(SAMPLE_ROOT)
+        if self._has_sample_source_media():
+            return
+
+        SAMPLE_IMPORT.mkdir(parents=True, exist_ok=True)
+        source = SAMPLE_IMAGE if SAMPLE_IMAGE.exists() else None
+        base_time = int(time.time()) - (86400 * 90)
+        for idx, (filename, minute_offset) in enumerate(SAMPLE_FILES):
+            target = SAMPLE_IMPORT / filename
+            if source:
+                shutil.copyfile(source, target)
+            else:
+                target.write_text(f"sample media placeholder {idx}\n", encoding="utf-8")
+            ts = base_time + (minute_offset * 60)
+            target.touch()
+            try:
+                import os
+
+                os.utime(target, (ts, ts))
+            except OSError:
+                pass
+
+    def reset_sample_library(self) -> None:
+        if self.process and self.process.state() != QProcess.NotRunning:
+            QMessageBox.information(self, "Run in progress", "Stop the current run before resetting the sample library.")
+            return
+        self._ensure_sample_library(force=True)
+        self.root_path.setText(str(SAMPLE_ROOT))
+        self.latest_csv_path = None
+        self.open_csv_button.setEnabled(False)
+        self._populate_demo_rows()
+        self.phase_label.setText("Ready")
+        self.status_line.setText("Sample library reset. Run a dry scan to preview the organizer.")
+        self._set_progress(0)
 
     def _build_preview_panel(self) -> QWidget:
         panel = QFrame()

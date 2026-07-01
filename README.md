@@ -72,6 +72,8 @@ pip install -r requirements.txt
 python photo_organizer_ui.py
 ```
 
+The UI opens on a generated `sample_images/` folder by default so you can run a safe demo immediately. Use **Run dry scan** to preview the organizer, uncheck **Dry run first** to run the sample for real, and use **Reset sample** to recreate the demo folder.
+
 ### Dry run (always do this first)
 ```powershell
 python -u bulk_image_rename.py "E:\" --dry-run --log-csv dry_run.csv
