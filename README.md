@@ -48,6 +48,13 @@ Excluded:
 
 - Python **3.10+**
 - **ExifTool** (recommended)
+- Optional UI: **PySide6**
+
+Install the desktop UI dependency:
+
+```powershell
+pip install -r requirements.txt
+```
 
 ### Install ExifTool (Windows)
 1. Download from https://exiftool.org/
@@ -59,6 +66,11 @@ Excluded:
 ---
 
 ## Usage
+
+### Desktop UI
+```powershell
+python photo_organizer_ui.py
+```
 
 ### Dry run (always do this first)
 ```powershell
@@ -107,6 +119,26 @@ ROOT/
     2021/
     ...
     _DUPLICATES/
+```
+
+---
+
+## Portfolio UI
+
+The portfolio-friendly desktop UI is built with PySide6:
+
+```powershell
+python photo_organizer_ui.py
+```
+
+It opens a native dashboard for configuring dry runs, duplicate handling, CSV logs, year-folder organization, and launching the real organizer script.
+
+A static browser mockup is also included in `web/` if you want a quick web screenshot.
+
+Open `web/index.html` in a browser, or serve it locally:
+
+```powershell
+python -m http.server 8000 -d web
 ```
 
 

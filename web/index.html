@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Photo Library Organizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar" aria-label="Project navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div>
+            <p class="eyebrow">Photo Library</p>
+            <h1>Organizer</h1>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <a class="active" href="#scan">Scan</a>
+          <a href="#rules">Rules</a>
+          <a href="#duplicates">Duplicates</a>
+          <a href="#logs">Logs</a>
+        </nav>
+
+        <div class="safety-panel">
+          <p class="panel-label">Safety Mode</p>
+          <div class="toggle-row">
+            <span>Dry run first</span>
+            <button class="toggle is-on" type="button" aria-label="Dry run enabled">
+              <span></span>
+            </button>
+          </div>
+          <p>Preview moves, renames, duplicate actions, and CSV output before touching the library.</p>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Windows friendly Python utility</p>
+            <h2>Consolidate, rename, dedupe, and organize a messy media drive.</h2>
+          </div>
+          <div class="top-actions">
+            <button class="ghost-button" type="button">Open CSV</button>
+            <button class="primary-button" id="runButton" type="button">Run dry scan</button>
+          </div>
+        </header>
+
+        <section class="hero-grid" id="scan">
+          <div class="scan-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Source</p>
+                <h3>Library Scan</h3>
+              </div>
+              <span class="status-pill">ExifTool ready</span>
+            </div>
+
+            <div class="path-control">
+              <label for="sourcePath">Root folder</label>
+              <div class="input-row">
+                <input id="sourcePath" value="E:\Camera Roll" />
+                <button type="button" aria-label="Browse source folder">Browse</button>
+              </div>
+            </div>
+
+            <div class="metric-grid">
+              <div>
+                <span class="metric-value" data-target="18426">18,426</span>
+                <span class="metric-label">media files</span>
+              </div>
+              <div>
+                <span class="metric-value">12</span>
+                <span class="metric-label">formats</span>
+              </div>
+              <div>
+                <span class="metric-value">384 GB</span>
+                <span class="metric-label">queued</span>
+              </div>
+              <div>
+                <span class="metric-value">94.8%</span>
+                <span class="metric-label">timestamp hit rate</span>
+              </div>
+            </div>
+
+            <div class="progress-wrap">
+              <div class="progress-copy">
+                <span id="phaseLabel">Phase B: snapshot list</span>
+                <span id="percentLabel">67%</span>
+              </div>
+              <div class="progress-bar" aria-hidden="true">
+                <span id="progressFill"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gallery-panel" aria-label="Sample media preview">
+            <img src="assets/gallery-contact-sheet.png" alt="Sample contact sheet of organized travel and family media thumbnails" />
+            <div class="gallery-overlay">
+              <div>
+                <p class="eyebrow">Destination</p>
+                <strong>all_photos / 2024</strong>
+              </div>
+              <span>YYYYMMDD_HHMMSS.ext</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-grid">
+          <div class="settings-panel" id="rules">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Rules</p>
+                <h3>Organizer Options</h3>
+              </div>
+              <button class="small-button" type="button">Save preset</button>
+            </div>
+
+            <div class="option-list">
+              <label class="option-row">
+                <input type="checkbox" checked />
+                <span>
+                  <strong>Organize into year folders</strong>
+                  <small>Move files into YYYY folders after consolidation.</small>
+                </span>
+              </label>
+              <label class="option-row">
+                <input type="checkbox" checked />
+                <span>
+                  <strong>CSV log</strong>
+                  <small>Write every move, rename, duplicate, and skip event.</small>
+                </span>
+              </label>
+              <label class="option-row">
+                <input type="checkbox" />
+                <span>
+                  <strong>Prefer newest timestamp</strong>
+                  <small>Use the latest EXIF candidate instead of the oldest.</small>
+                </span>
+              </label>
+            </div>
+
+            <div class="segmented" role="group" aria-label="Duplicate action">
+              <button class="active" type="button">Move duplicates</button>
+              <button type="button">Skip</button>
+              <button type="button">Delete</button>
+            </div>
+          </div>
+
+          <div class="results-panel" id="duplicates">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Live Preview</p>
+                <h3>Run Summary</h3>
+              </div>
+              <span class="status-pill muted">ETA 00:08:12</span>
+            </div>
+
+            <div class="summary-bars">
+              <div style="--bar: 82%">
+                <span>Moved</span>
+                <strong>15,104</strong>
+              </div>
+              <div style="--bar: 61%">
+                <span>Renamed</span>
+                <strong>11,238</strong>
+              </div>
+              <div style="--bar: 18%">
+                <span>Duplicates</span>
+                <strong>642</strong>
+              </div>
+              <div style="--bar: 9%">
+                <span>Skipped</span>
+                <strong>119</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="table-panel" id="logs">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CSV Log</p>
+              <h3>Recent Actions</h3>
+            </div>
+            <span class="status-pill">run.csv</span>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Old path</th>
+                  <th>New path</th>
+                  <th>Source</th>
+                  <th>Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="tag move">MOVE+RENAME</span></td>
+                  <td>E:\DCIM\IMG_4382.JPG</td>
+                  <td>all_photos\2024\20240518_143522.jpg</td>
+                  <td>exif:DateTimeOriginal</td>
+                  <td>6.8 MB</td>
+                </tr>
+                <tr>
+                  <td><span class="tag duplicate">DUP_MOVE</span></td>
+                  <td>E:\Backup\IMG_4382 copy.JPG</td>
+                  <td>all_photos\_DUPLICATES\IMG_4382 copy.jpg</td>
+                  <td>hash_match</td>
+                  <td>6.8 MB</td>
+                </tr>
+                <tr>
+                  <td><span class="tag move">MOVE</span></td>
+                  <td>E:\Videos\VID_1029.MOV</td>
+                  <td>all_photos\2023\20230902_181744.mov</td>
+                  <td>QuickTime:CreateDate</td>
+                  <td>184 MB</td>
+                </tr>
+                <tr>
+                  <td><span class="tag skip">SKIP</span></td>
+                  <td>E:\Private\scan.png</td>
+                  <td>-</td>
+                  <td>excluded folder</td>
+                  <td>2.1 MB</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
