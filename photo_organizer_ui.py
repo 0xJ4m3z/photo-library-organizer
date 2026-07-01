@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices, QTextCursor
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -44,6 +44,7 @@ PROGRESS_RE = re.compile(
     r"moved\s+([\d,]+).*?renamed\s+([\d,]+).*?dups\s+([\d,]+).*?skipped\s+([\d,]+)",
     re.IGNORECASE,
 )
+ACTION_RE = re.compile(r"^(?:\[DRY\])?\[([^\]]+)\]\s+(.+?)(?:\s+->\s+(.+))?$")
 SAMPLE_FILES = [
     ("IMG_4382.png", 0),
     ("beach-sunset.png", 48),
@@ -103,6 +104,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self._apply_styles()
         self._select_page(0)
         self._update_sample_count()
+        self._update_folder_labels()
         self._update_command_preview()
 
     def _build_sidebar(self) -> QWidget:
@@ -125,7 +127,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addLayout(brand_row)
 
         self.nav_buttons: list[QPushButton] = []
-        for idx, label in enumerate(("Run", "Options", "Results")):
+        for idx, label in enumerate(("Run", "Settings")):
             button = QPushButton(label)
             button.setObjectName("navButton")
             button.clicked.connect(lambda _checked=False, page=idx: self._select_page(page))
@@ -159,7 +161,6 @@ class PhotoOrganizerWindow(QMainWindow):
         self.pages.setObjectName("pages")
         self.pages.addWidget(self._build_run_page())
         self.pages.addWidget(self._build_options_page())
-        self.pages.addWidget(self._build_results_page())
         return self.pages
 
     def _build_run_page(self) -> QWidget:
@@ -178,6 +179,10 @@ class PhotoOrganizerWindow(QMainWindow):
         heading.addWidget(title)
         header.addLayout(heading, 1)
 
+        self.open_csv_button = QPushButton("Open CSV")
+        self.open_csv_button.setObjectName("ghostButton")
+        self.open_csv_button.clicked.connect(self.open_csv)
+        self.open_csv_button.setEnabled(False)
         self.open_dest_button = QPushButton("Open Output")
         self.open_dest_button.setObjectName("ghostButton")
         self.open_dest_button.clicked.connect(self.open_output_folder)
@@ -185,25 +190,35 @@ class PhotoOrganizerWindow(QMainWindow):
         self.run_button = QPushButton("Run Dry Scan")
         self.run_button.setObjectName("primaryButton")
         self.run_button.clicked.connect(self.run_organizer)
+        header.addWidget(self.open_csv_button)
         header.addWidget(self.open_dest_button)
         header.addWidget(self.run_button)
         layout.addLayout(header)
 
-        source_card = QFrame()
-        source_card.setObjectName("panel")
-        source_layout = QGridLayout(source_card)
-        source_layout.setContentsMargins(18, 18, 18, 18)
-        source_layout.setHorizontalSpacing(10)
-        source_layout.setVerticalSpacing(10)
+        top_row = QHBoxLayout()
+        top_row.setSpacing(18)
 
-        source_layout.addWidget(QLabel("Root folder"), 0, 0)
+        folder_card = QFrame()
+        folder_card.setObjectName("panel")
+        folder_layout = QGridLayout(folder_card)
+        folder_layout.setContentsMargins(18, 18, 18, 18)
+        folder_layout.setHorizontalSpacing(10)
+        folder_layout.setVerticalSpacing(10)
+
+        folder_layout.addWidget(QLabel("Source folder"), 0, 0)
         self.root_path = QLineEdit(str(SAMPLE_ROOT))
         self.root_path.textChanged.connect(self._update_command_preview)
+        self.root_path.textChanged.connect(self._update_folder_labels)
         browse = QPushButton("Browse")
         browse.setObjectName("ghostButton")
         browse.clicked.connect(self.choose_root)
-        source_layout.addWidget(self.root_path, 1, 0)
-        source_layout.addWidget(browse, 1, 1)
+        folder_layout.addWidget(self.root_path, 1, 0)
+        folder_layout.addWidget(browse, 1, 1)
+
+        folder_layout.addWidget(QLabel("Destination folder"), 2, 0)
+        self.destination_label = QLabel()
+        self.destination_label.setObjectName("pathLabel")
+        folder_layout.addWidget(self.destination_label, 3, 0, 1, 2)
 
         self.dry_run = QCheckBox("Dry run first")
         self.dry_run.setChecked(True)
@@ -212,9 +227,30 @@ class PhotoOrganizerWindow(QMainWindow):
         self.csv_log = QCheckBox("Write CSV log")
         self.csv_log.setChecked(True)
         self.csv_log.stateChanged.connect(lambda _state: self._update_command_preview())
-        source_layout.addWidget(self.dry_run, 2, 0)
-        source_layout.addWidget(self.csv_log, 2, 1)
-        layout.addWidget(source_card)
+        folder_layout.addWidget(self.dry_run, 4, 0)
+        folder_layout.addWidget(self.csv_log, 4, 1)
+        top_row.addWidget(folder_card, 3)
+
+        preview_card = QFrame()
+        preview_card.setObjectName("panel")
+        preview_layout = QVBoxLayout(preview_card)
+        preview_layout.setContentsMargins(18, 18, 18, 18)
+        preview_layout.setSpacing(10)
+        preview_title = QLabel("Current image")
+        preview_title.setObjectName("sectionTitle")
+        self.preview = QLabel("Waiting for run")
+        self.preview.setObjectName("preview")
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview.setMinimumSize(220, 150)
+        self.preview.setMaximumHeight(170)
+        self.current_file_label = QLabel("No file yet.")
+        self.current_file_label.setObjectName("muted")
+        self.current_file_label.setWordWrap(True)
+        preview_layout.addWidget(preview_title)
+        preview_layout.addWidget(self.preview)
+        preview_layout.addWidget(self.current_file_label)
+        top_row.addWidget(preview_card, 2)
+        layout.addLayout(top_row)
 
         progress_card = QFrame()
         progress_card.setObjectName("panel")
@@ -233,35 +269,25 @@ class PhotoOrganizerWindow(QMainWindow):
         progress_layout.addWidget(self.stats_label)
         layout.addWidget(progress_card)
 
-        command_card = QFrame()
-        command_card.setObjectName("panel")
-        command_layout = QVBoxLayout(command_card)
-        command_layout.setContentsMargins(18, 18, 18, 18)
-        command_layout.setSpacing(8)
-        command_label = QLabel("Command")
-        command_label.setObjectName("sectionTitle")
-        self.command_preview = QPlainTextEdit()
-        self.command_preview.setObjectName("commandPreview")
-        self.command_preview.setReadOnly(True)
-        self.command_preview.setMaximumHeight(74)
-        command_layout.addWidget(command_label)
-        command_layout.addWidget(self.command_preview)
-        layout.addWidget(command_card)
-
-        console_card = QFrame()
-        console_card.setObjectName("panel")
-        console_layout = QVBoxLayout(console_card)
-        console_layout.setContentsMargins(18, 18, 18, 18)
-        console_layout.setSpacing(8)
-        console_label = QLabel("Output")
-        console_label.setObjectName("sectionTitle")
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setObjectName("console")
-        self.console.setPlainText("Run the dry scan to preview moves, renames, and duplicate handling.")
-        console_layout.addWidget(console_label)
-        console_layout.addWidget(self.console, 1)
-        layout.addWidget(console_card, 1)
+        actions_card = QFrame()
+        actions_card.setObjectName("panel")
+        actions_layout = QVBoxLayout(actions_card)
+        actions_layout.setContentsMargins(18, 18, 18, 18)
+        actions_layout.setSpacing(10)
+        actions_label = QLabel("Actions")
+        actions_label.setObjectName("sectionTitle")
+        self.results_table = QTableWidget(0, 5)
+        self.results_table.setObjectName("resultsTable")
+        self.results_table.setHorizontalHeaderLabels(["Action", "From", "To", "Source / Note", "Size"])
+        self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.results_table.verticalHeader().setVisible(False)
+        self.results_table.setAlternatingRowColors(True)
+        self.results_status = QLabel("No run loaded yet.")
+        self.results_status.setObjectName("muted")
+        actions_layout.addWidget(actions_label)
+        actions_layout.addWidget(self.results_table, 1)
+        actions_layout.addWidget(self.results_status)
+        layout.addWidget(actions_card, 1)
 
         return page
 
@@ -271,7 +297,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.setContentsMargins(30, 28, 30, 28)
         layout.setSpacing(18)
 
-        title = QLabel("Options")
+        title = QLabel("Settings")
         title.setObjectName("pageTitle")
         layout.addWidget(title)
 
@@ -284,6 +310,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
         self.dest_name = QLineEdit("all_photos")
         self.dest_name.textChanged.connect(self._update_command_preview)
+        self.dest_name.textChanged.connect(self._update_folder_labels)
         self.dup_action = QComboBox()
         self.dup_action.addItems(["move", "skip", "delete"])
         self.dup_action.currentTextChanged.connect(self._update_command_preview)
@@ -337,36 +364,6 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addStretch(1)
         return page
 
-    def _build_results_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 28, 30, 28)
-        layout.setSpacing(18)
-
-        header = QHBoxLayout()
-        title = QLabel("Results")
-        title.setObjectName("pageTitle")
-        self.open_csv_button = QPushButton("Open CSV")
-        self.open_csv_button.setObjectName("ghostButton")
-        self.open_csv_button.clicked.connect(self.open_csv)
-        self.open_csv_button.setEnabled(False)
-        header.addWidget(title, 1)
-        header.addWidget(self.open_csv_button)
-        layout.addLayout(header)
-
-        self.results_table = QTableWidget(0, 5)
-        self.results_table.setObjectName("resultsTable")
-        self.results_table.setHorizontalHeaderLabels(["Action", "Old path", "New path", "Source / Note", "Size"])
-        self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.results_table.verticalHeader().setVisible(False)
-        self.results_table.setAlternatingRowColors(True)
-        layout.addWidget(self.results_table, 1)
-
-        self.results_status = QLabel("No run loaded yet.")
-        self.results_status.setObjectName("muted")
-        layout.addWidget(self.results_status)
-        return page
-
     def _select_page(self, index: int) -> None:
         self.pages.setCurrentIndex(index)
         for button_index, button in enumerate(self.nav_buttons):
@@ -379,6 +376,7 @@ class PhotoOrganizerWindow(QMainWindow):
         if folder:
             self.root_path.setText(folder)
             self._update_sample_count()
+            self._update_folder_labels()
 
     def reset_sample_library(self) -> None:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
@@ -393,6 +391,9 @@ class PhotoOrganizerWindow(QMainWindow):
         self.results_table.setRowCount(0)
         self.results_status.setText("Sample library reset.")
         self.status_label.setText("Sample library reset. Ready for a dry scan.")
+        self.preview.setText("Waiting for run")
+        self.preview.setPixmap(QPixmap())
+        self.current_file_label.setText("No file yet.")
         self.progress.setValue(0)
         self.stats_label.setText("Moved 0 | Renamed 0 | Duplicates 0 | Skipped 0")
         self._update_sample_count()
@@ -424,10 +425,12 @@ class PhotoOrganizerWindow(QMainWindow):
         self.process.finished.connect(self._process_finished)
         self.process.errorOccurred.connect(self._process_error)
 
-        self.console.clear()
         self.results_table.setRowCount(0)
         self.open_csv_button.setEnabled(False)
         self.open_dest_button.setEnabled(False)
+        self.preview.setText("Waiting for first file")
+        self.preview.setPixmap(QPixmap())
+        self.current_file_label.setText("No file yet.")
         self.progress.setValue(0)
         self.status_label.setText("Starting...")
         self.stats_label.setText("Moved 0 | Renamed 0 | Duplicates 0 | Skipped 0")
@@ -466,6 +469,13 @@ class PhotoOrganizerWindow(QMainWindow):
         parts = [sys.executable] + self._build_args(root)
         self.command_preview.setPlainText(" ".join(f'"{part}"' if " " in part else part for part in parts))
 
+    def _update_folder_labels(self) -> None:
+        if not hasattr(self, "destination_label"):
+            return
+        root = Path(self.root_path.text()).expanduser() if self.root_path.text() else SAMPLE_ROOT
+        destination = root / self.dest_name.text().strip()
+        self.destination_label.setText(str(destination))
+
     def _update_run_label(self) -> None:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             self.run_button.setText("Stop")
@@ -476,19 +486,15 @@ class PhotoOrganizerWindow(QMainWindow):
         if not self.process:
             return
         text = bytes(self.process.readAllStandardOutput()).decode(errors="replace")
-        self._append_console(text)
         self._update_progress(text)
+        self._update_actions(text)
 
     def _read_stderr(self) -> None:
         if not self.process:
             return
         text = bytes(self.process.readAllStandardError()).decode(errors="replace")
-        self._append_console(text)
-
-    def _append_console(self, text: str) -> None:
-        self.console.moveCursor(QTextCursor.MoveOperation.End)
-        self.console.insertPlainText(text)
-        self.console.ensureCursorVisible()
+        if text.strip():
+            self.results_status.setText(text.strip().splitlines()[-1])
 
     def _update_progress(self, text: str) -> None:
         normalized = text.replace("\r", "\n")
@@ -504,6 +510,46 @@ class PhotoOrganizerWindow(QMainWindow):
             self.status_label.setText("Phase B: building file list")
         elif "Phase C" in text:
             self.status_label.setText("Phase C: processing files")
+
+    def _update_actions(self, text: str) -> None:
+        for line in text.replace("\r", "\n").splitlines():
+            match = ACTION_RE.match(line.strip())
+            if not match:
+                continue
+            action, source, destination = match.group(1), match.group(2), match.group(3) or ""
+            source_path = Path(source)
+            destination_path = Path(destination) if destination else None
+            preview_path = source_path if source_path.exists() else destination_path
+            if preview_path:
+                self._show_current_media(preview_path)
+            self._append_action_row([action, source, destination, "", ""])
+
+    def _append_action_row(self, row: list[str]) -> None:
+        row_idx = self.results_table.rowCount()
+        self.results_table.insertRow(row_idx)
+        for col_idx, value in enumerate(row):
+            self.results_table.setItem(row_idx, col_idx, make_item(value, align_center=col_idx == 0))
+        self.results_table.scrollToBottom()
+
+    def _show_current_media(self, path: Path) -> None:
+        self.current_file_label.setText(str(path))
+        if not path.exists() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".gif"}:
+            self.preview.setPixmap(QPixmap())
+            self.preview.setText(path.name)
+            return
+        pixmap = QPixmap(str(path))
+        if pixmap.isNull():
+            self.preview.setPixmap(QPixmap())
+            self.preview.setText(path.name)
+            return
+        self.preview.setText("")
+        self.preview.setPixmap(
+            pixmap.scaled(
+                self.preview.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
 
     def _process_finished(self, exit_code: int, _exit_status) -> None:
         self._update_run_label()
@@ -649,6 +695,21 @@ class PhotoOrganizerWindow(QMainWindow):
             #sideLabel, #sectionTitle, #statusLabel {
                 color: #172026;
                 font-weight: 900;
+            }
+            #pathLabel {
+                background: #f8fafb;
+                border: 1px solid #d9e0e5;
+                border-radius: 8px;
+                color: #172026;
+                font-weight: 800;
+                padding: 9px;
+            }
+            #preview {
+                background: #f8fafb;
+                border: 1px solid #d9e0e5;
+                border-radius: 8px;
+                color: #65717a;
+                font-weight: 800;
             }
             #eyebrow {
                 color: #65717a;
