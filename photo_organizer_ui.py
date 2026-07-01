@@ -273,16 +273,16 @@ class PhotoOrganizerWindow(QMainWindow):
         path_row.addWidget(browse)
         layout.addLayout(path_row)
 
-        stats = QHBoxLayout()
-        stats.setSpacing(8)
-        for value, label in (
-            ("18.4k", "files"),
-            ("12", "formats"),
-            ("384 GB", "queued"),
-            ("94.8%", "dated"),
-        ):
-            stats.addWidget(StatCard(value, label))
-        layout.addLayout(stats)
+        info_row = QHBoxLayout()
+        info_row.setSpacing(10)
+        self.sample_count_label = QLabel(f"{self._sample_media_count()} sample files")
+        self.sample_count_label.setObjectName("scanInfo")
+        mode_label = QLabel("Safe dry-run demo")
+        mode_label.setObjectName("scanInfoMuted")
+        info_row.addWidget(self.sample_count_label)
+        info_row.addWidget(mode_label)
+        info_row.addStretch(1)
+        layout.addLayout(info_row)
 
         self.phase_label = QLabel("Ready")
         self.phase_label.setObjectName("fieldLabel")
@@ -327,6 +327,17 @@ class PhotoOrganizerWindow(QMainWindow):
                 return True
         return False
 
+    def _sample_media_count(self) -> int:
+        if not SAMPLE_ROOT.exists():
+            return 0
+        return sum(
+            1
+            for path in SAMPLE_ROOT.rglob("*")
+            if "all_photos" not in path.parts
+            and path.is_file()
+            and path.suffix.lower() in TARGET_EXTS
+        )
+
     def _ensure_sample_library(self, force: bool = False) -> None:
         if force and SAMPLE_ROOT.exists():
             shutil.rmtree(SAMPLE_ROOT)
@@ -362,6 +373,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.latest_csv_path = None
         self.open_csv_button.setEnabled(False)
         self._populate_demo_rows()
+        self.sample_count_label.setText(f"{self._sample_media_count()} sample files")
         self.phase_label.setText("Ready")
         self.status_line.setText("Sample library reset. Run a dry scan to preview the organizer.")
         self._set_progress(0)
@@ -857,6 +869,23 @@ class PhotoOrganizerWindow(QMainWindow):
                 color: #65717a;
                 font-size: 11px;
                 font-weight: 700;
+            }
+            #scanInfo {
+                background: #f8fafb;
+                border: 1px solid #d9e0e5;
+                border-radius: 8px;
+                color: #172026;
+                font-size: 13px;
+                font-weight: 900;
+                padding: 7px 10px;
+            }
+            #scanInfoMuted {
+                background: rgba(31, 157, 104, 24);
+                border-radius: 8px;
+                color: #10764b;
+                font-size: 13px;
+                font-weight: 900;
+                padding: 7px 10px;
             }
             #optionCheck {
                 color: #172026;
