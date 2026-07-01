@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices, QPixmap
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -46,14 +46,14 @@ PROGRESS_RE = re.compile(
 )
 ACTION_RE = re.compile(r"^(?:\[DRY\])?\[([^\]]+)\]\s+(.+?)(?:\s+->\s+(.+))?$")
 SAMPLE_FILES = [
-    ("IMG_4382.png", 0),
-    ("beach-sunset.png", 48),
-    ("birthday-table.png", 96),
-    ("city-night.png", 144),
-    ("dog-park.png", 192),
-    ("concert-lights.png", 240),
-    ("snowy-cabin.png", 288),
-    ("family-scan.png", 336),
+    ("beach-sunset.png", 0, 0, 0),
+    ("mountain-trail.png", 48, 1, 0),
+    ("birthday-table.png", 96, 2, 0),
+    ("city-night.png", 144, 3, 0),
+    ("dog-park.png", 192, 0, 1),
+    ("concert-lights.png", 240, 1, 1),
+    ("snowy-cabin.png", 288, 2, 1),
+    ("pasta-dinner.png", 336, 3, 1),
 ]
 
 
@@ -625,12 +625,15 @@ class PhotoOrganizerWindow(QMainWindow):
 
         SAMPLE_IMPORT.mkdir(parents=True, exist_ok=True)
         base_time = int(time.time()) - (86400 * 90)
-        for idx, (filename, minute_offset) in enumerate(SAMPLE_FILES):
+        contact_sheet = QImage(str(SAMPLE_ASSET)) if SAMPLE_ASSET.exists() else QImage()
+        cell_width = contact_sheet.width() // 4 if not contact_sheet.isNull() else 0
+        cell_height = contact_sheet.height() // 3 if not contact_sheet.isNull() else 0
+
+        for idx, (filename, minute_offset, col, row) in enumerate(SAMPLE_FILES):
             target = SAMPLE_IMPORT / filename
-            if SAMPLE_ASSET.exists():
-                shutil.copyfile(SAMPLE_ASSET, target)
-                with target.open("ab") as handle:
-                    handle.write(f"\n# sample-file-{idx}\n".encode("ascii"))
+            if not contact_sheet.isNull() and cell_width and cell_height:
+                crop = contact_sheet.copy(col * cell_width, row * cell_height, cell_width, cell_height)
+                crop.save(str(target), "PNG")
             else:
                 target.write_text(f"sample media placeholder {idx}\n", encoding="utf-8")
             ts = base_time + (minute_offset * 60)
