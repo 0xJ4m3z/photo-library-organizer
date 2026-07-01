@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QPixmap
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -81,6 +81,14 @@ class OptionRow(QFrame):
 
         layout.addWidget(checkbox)
         layout.addWidget(desc_label)
+
+
+def make_table_item(value: str, centered: bool = False) -> QTableWidgetItem:
+    item = QTableWidgetItem(value)
+    item.setForeground(QBrush(QColor("#172026")))
+    if centered:
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    return item
 
 
 class PhotoOrganizerWindow(QMainWindow):
@@ -510,9 +518,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.log_table.setRowCount(len(rows))
         for row_idx, row in enumerate(rows):
             for col_idx, value in enumerate(row):
-                item = QTableWidgetItem(value)
-                if col_idx == 0:
-                    item.setTextAlignment(Qt.AlignCenter)
+                item = make_table_item(value, centered=col_idx == 0)
                 self.log_table.setItem(row_idx, col_idx, item)
         self.log_table.resizeColumnsToContents()
 
@@ -681,9 +687,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.log_table.setRowCount(len(rows))
         for row_idx, row in enumerate(rows):
             for col_idx, value in enumerate(row):
-                item = QTableWidgetItem(value)
-                if col_idx == 0:
-                    item.setTextAlignment(Qt.AlignCenter)
+                item = make_table_item(value, centered=col_idx == 0)
                 self.log_table.setItem(row_idx, col_idx, item)
 
     def _format_size(self, raw_size: str) -> str:
@@ -876,11 +880,20 @@ class PhotoOrganizerWindow(QMainWindow):
             }
             #logTable {
                 background: #ffffff;
+                color: #172026;
                 alternate-background-color: #f8fafb;
                 border: 1px solid #d9e0e5;
                 border-radius: 8px;
                 gridline-color: #d9e0e5;
                 selection-background-color: #dcecff;
+                selection-color: #172026;
+            }
+            #logTable::item {
+                color: #172026;
+                padding: 6px;
+            }
+            #logTable::item:disabled {
+                color: #172026;
             }
             QHeaderView::section {
                 background: #f8fafb;
