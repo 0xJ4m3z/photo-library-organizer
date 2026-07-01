@@ -48,9 +48,9 @@ Excluded:
 
 - Python **3.10+**
 - **ExifTool** (recommended)
-- Optional UI: **PySide6**
+- Optional UI: **PySide6 Essentials**
 
-Install the desktop UI dependency:
+Install the desktop UI dependency. The project uses `PySide6-Essentials` so it only installs the Qt modules needed by the app instead of the much larger Addons package.
 
 ```powershell
 pip install -r requirements.txt

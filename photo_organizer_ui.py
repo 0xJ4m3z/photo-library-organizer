@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -468,10 +468,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self._append_console(text)
 
     def _append_console(self, text: str) -> None:
-        cursor = self.console.textCursor()
-        cursor.movePosition(cursor.End)
-        cursor.insertText(text)
-        self.console.setTextCursor(cursor)
+        self.console.moveCursor(QTextCursor.MoveOperation.End)
+        self.console.insertPlainText(text)
         self.console.ensureCursorVisible()
 
     def _update_progress_from_text(self, text: str) -> None:
