@@ -37,8 +37,8 @@ class StatCard(QFrame):
         super().__init__()
         self.setObjectName("statCard")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(4)
+        layout.setContentsMargins(10, 4, 10, 4)
+        layout.setSpacing(0)
 
         value_label = QLabel(value)
         value_label.setObjectName("statValue")
@@ -218,10 +218,10 @@ class PhotoOrganizerWindow(QMainWindow):
         stats = QHBoxLayout()
         stats.setSpacing(8)
         for value, label in (
-            ("18,426", "files"),
+            ("18.4k", "files"),
             ("12", "formats"),
             ("384 GB", "queued"),
-            ("94.8%", "timestamps"),
+            ("94.8%", "dated"),
         ):
             stats.addWidget(StatCard(value, label))
         layout.addLayout(stats)
@@ -294,7 +294,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.organize_year.setChecked(True)
         self.csv_log = QCheckBox("CSV log")
         self.csv_log.setChecked(True)
-        self.prefer_newest = QCheckBox("Prefer newest timestamp")
+        self.prefer_newest = QCheckBox("Prefer newest")
 
         check_row = QHBoxLayout()
         check_row.setSpacing(10)
@@ -323,16 +323,18 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.setSpacing(8)
         layout.addLayout(self._section_heading("Live Preview", "Run Summary", "ETA 00:08:12"))
 
-        for name, value in (
+        summary_grid = QGridLayout()
+        summary_grid.setSpacing(8)
+        for idx, (name, value) in enumerate((
             ("Moved", "15,104"),
             ("Renamed", "11,238"),
             ("Duplicates", "642"),
             ("Skipped", "119"),
-        ):
+        )):
             row = QFrame()
             row.setObjectName("summaryRow")
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(14, 7, 14, 7)
+            row_layout.setContentsMargins(12, 6, 12, 6)
             label = QLabel(name)
             label.setObjectName("summaryLabel")
             number = QLabel(value)
@@ -340,7 +342,8 @@ class PhotoOrganizerWindow(QMainWindow):
             row_layout.addWidget(label)
             row_layout.addStretch(1)
             row_layout.addWidget(number)
-            layout.addWidget(row)
+            summary_grid.addWidget(row, idx // 2, idx % 2)
+        layout.addLayout(summary_grid)
         return panel
 
     def _build_log_panel(self) -> QWidget:
@@ -358,12 +361,13 @@ class PhotoOrganizerWindow(QMainWindow):
         self.log_table.verticalHeader().setVisible(False)
         self.log_table.horizontalHeader().setStretchLastSection(True)
         self.log_table.setAlternatingRowColors(True)
+        self.log_table.setMinimumHeight(116)
         layout.addWidget(self.log_table)
 
         self.console = QPlainTextEdit()
         self.console.setObjectName("console")
         self.console.setReadOnly(True)
-        self.console.setMaximumHeight(54)
+        self.console.setMaximumHeight(42)
         self.console.setPlainText("Ready. Configure options and run a dry scan.")
         layout.addWidget(self.console)
         return panel
