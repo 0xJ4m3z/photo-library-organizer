@@ -92,7 +92,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.sections: dict[str, QWidget] = {}
         self._ensure_sample_library()
         self.setWindowTitle("Photo Library Organizer")
-        self.resize(1280, 760)
+        self.resize(1280, 720)
         self.setMinimumSize(1100, 680)
 
         root = QWidget()
@@ -214,8 +214,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview_panel = self._build_preview_panel()
         top_grid.addWidget(self.scan_panel, 0, 0)
         top_grid.addWidget(self.preview_panel, 0, 1)
-        top_grid.setColumnStretch(0, 9)
-        top_grid.setColumnStretch(1, 11)
+        top_grid.setColumnStretch(0, 10)
+        top_grid.setColumnStretch(1, 10)
         layout.addLayout(top_grid, 0)
 
         lower_grid = QGridLayout()
@@ -243,7 +243,8 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_scan_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
-        panel.setMinimumHeight(220)
+        panel.setMinimumHeight(178)
+        panel.setMaximumHeight(210)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(10)
@@ -358,7 +359,8 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_preview_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("previewPanel")
-        panel.setMinimumHeight(220)
+        panel.setMinimumHeight(178)
+        panel.setMaximumHeight(210)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -735,7 +737,7 @@ class PhotoOrganizerWindow(QMainWindow):
             }
             #headline {
                 color: #172026;
-                font-size: 28px;
+                font-size: 27px;
                 font-weight: 900;
             }
             #panel, #safetyPanel {
@@ -751,6 +753,8 @@ class PhotoOrganizerWindow(QMainWindow):
                 background: #111820;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
+                min-height: 132px;
+                max-height: 150px;
             }
             #previewOverlay {
                 background: rgba(18, 26, 34, 205);
