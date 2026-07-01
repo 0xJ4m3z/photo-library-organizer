@@ -1,9 +1,10 @@
+import csv
 import re
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QProcess, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -17,6 +18,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QHeaderView,
     QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
@@ -69,8 +72,9 @@ class PhotoOrganizerWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.process: QProcess | None = None
+        self.latest_csv_path: Path | None = None
         self.setWindowTitle("Photo Library Organizer")
-        self.resize(1280, 720)
+        self.resize(1320, 820)
         self.setMinimumSize(1100, 680)
 
         root = QWidget()
@@ -143,11 +147,17 @@ class PhotoOrganizerWindow(QMainWindow):
         return sidebar
 
     def _build_workspace(self) -> QWidget:
+        scroll_area = QScrollArea()
+        scroll_area.setObjectName("workspaceScroll")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         workspace = QFrame()
         workspace.setObjectName("workspace")
+        workspace.setMinimumWidth(900)
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(28, 24, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(28, 24, 24, 24)
+        layout.setSpacing(18)
 
         header = QHBoxLayout()
         header.setSpacing(20)
@@ -164,9 +174,12 @@ class PhotoOrganizerWindow(QMainWindow):
 
         self.open_csv_button = QPushButton("Open CSV")
         self.open_csv_button.setObjectName("ghostButton")
+        self.open_csv_button.clicked.connect(self.open_csv)
+        self.open_csv_button.setEnabled(False)
         self.run_button = QPushButton("Run dry scan")
         self.run_button.setObjectName("primaryButton")
         self.run_button.clicked.connect(self.run_organizer)
+        self.dry_run.stateChanged.connect(lambda _state: self._update_run_button_label())
         header.addWidget(self.open_csv_button)
         header.addWidget(self.run_button)
         layout.addLayout(header)
@@ -188,12 +201,13 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addLayout(lower_grid, 0)
 
         layout.addWidget(self._build_log_panel(), 1)
-        return workspace
+        scroll_area.setWidget(workspace)
+        return scroll_area
 
     def _build_scan_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
-        panel.setMinimumHeight(160)
+        panel.setMinimumHeight(220)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(10)
@@ -247,7 +261,7 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_preview_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("previewPanel")
-        panel.setMinimumHeight(160)
+        panel.setMinimumHeight(220)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -283,7 +297,7 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_options_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
-        panel.setMinimumHeight(152)
+        panel.setMinimumHeight(172)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(20, 16, 20, 14)
         layout.setSpacing(10)
@@ -316,7 +330,7 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_summary_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
-        panel.setMinimumHeight(152)
+        panel.setMinimumHeight(172)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(20, 16, 20, 14)
         layout.setSpacing(8)
@@ -348,7 +362,7 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_log_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("panel")
-        panel.setMinimumHeight(174)
+        panel.setMinimumHeight(300)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(20, 16, 20, 14)
         layout.setSpacing(8)
@@ -358,9 +372,9 @@ class PhotoOrganizerWindow(QMainWindow):
         self.log_table.setObjectName("logTable")
         self.log_table.setHorizontalHeaderLabels(["Action", "Old path", "New path", "Source", "Size"])
         self.log_table.verticalHeader().setVisible(False)
-        self.log_table.horizontalHeader().setStretchLastSection(True)
+        self.log_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.log_table.setAlternatingRowColors(True)
-        self.log_table.setMinimumHeight(104)
+        self.log_table.setMinimumHeight(190)
         layout.addWidget(self.log_table)
 
         self.status_line = QLabel("Ready. Configure options and run a dry scan.")
@@ -431,6 +445,18 @@ class PhotoOrganizerWindow(QMainWindow):
         if folder:
             self.root_path.setText(folder)
 
+    def open_csv(self) -> None:
+        if not self.latest_csv_path or not self.latest_csv_path.exists():
+            QMessageBox.information(self, "CSV not ready", "Run the organizer with CSV log enabled first.")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.latest_csv_path)))
+
+    def _update_run_button_label(self) -> None:
+        if self.process and self.process.state() != QProcess.NotRunning:
+            self.run_button.setText("Stop run")
+        else:
+            self.run_button.setText("Run dry scan" if self.dry_run.isChecked() else "Run organizer")
+
     def run_organizer(self) -> None:
         if self.process and self.process.state() != QProcess.NotRunning:
             self.process.kill()
@@ -440,12 +466,18 @@ class PhotoOrganizerWindow(QMainWindow):
         if not root.exists():
             QMessageBox.warning(self, "Folder not found", f"The selected root folder does not exist:\n{root}")
             return
+        if not SCRIPT.exists():
+            QMessageBox.critical(self, "Organizer script missing", f"Could not find:\n{SCRIPT}")
+            return
 
         args = [str(SCRIPT), str(root), "--dup-action", self.dup_action.currentText()]
         if self.dry_run.isChecked():
             args.append("--dry-run")
         if self.csv_log.isChecked():
-            args.extend(["--log-csv", str(root / "photo_organizer_run.csv")])
+            self.latest_csv_path = root / "photo_organizer_run.csv"
+            args.extend(["--log-csv", str(self.latest_csv_path)])
+        else:
+            self.latest_csv_path = None
         if self.prefer_newest.isChecked():
             args.append("--prefer-newest")
         if self.organize_year.isChecked():
@@ -458,7 +490,10 @@ class PhotoOrganizerWindow(QMainWindow):
         self.process.readyReadStandardOutput.connect(self._read_stdout)
         self.process.readyReadStandardError.connect(self._read_stderr)
         self.process.finished.connect(self._process_finished)
+        self.process.errorOccurred.connect(self._process_error)
 
+        self.log_table.setRowCount(0)
+        self.open_csv_button.setEnabled(False)
         self.status_line.setText("Starting organizer...")
         self.phase_label.setText("Starting organizer")
         self._set_progress(0)
@@ -504,17 +539,73 @@ class PhotoOrganizerWindow(QMainWindow):
         self.progress_fill.setGeometry(0, 0, width, self.progress.height())
 
     def _process_finished(self, exit_code: int, _exit_status) -> None:
-        self.run_button.setText("Run dry scan" if self.dry_run.isChecked() else "Run organizer")
+        self._update_run_button_label()
+        self._load_csv_rows()
         if exit_code == 0:
             self.phase_label.setText("Complete")
             self._set_progress(100)
+            self.status_line.setText("Complete. CSV log is ready." if self.latest_csv_path else "Complete.")
         else:
             self.phase_label.setText(f"Stopped with exit code {exit_code}")
+            self.status_line.setText(f"Stopped with exit code {exit_code}.")
+
+    def _process_error(self, error) -> None:
+        self._update_run_button_label()
+        self.status_line.setText(f"Process error: {error}")
+
+    def _load_csv_rows(self) -> None:
+        if not self.latest_csv_path or not self.latest_csv_path.exists():
+            return
+
+        self.open_csv_button.setEnabled(True)
+        rows: list[list[str]] = []
+        try:
+            with self.latest_csv_path.open("r", newline="", encoding="utf-8") as handle:
+                reader = csv.DictReader(handle)
+                for row in reader:
+                    rows.append([
+                        row.get("action", ""),
+                        row.get("old_path", ""),
+                        row.get("new_path", ""),
+                        row.get("source", "") or row.get("note", ""),
+                        self._format_size(row.get("size_bytes", "")),
+                    ])
+        except OSError as exc:
+            self.status_line.setText(f"Could not read CSV: {exc}")
+            return
+
+        self._set_table_rows(rows[-200:] if rows else [])
+
+    def _set_table_rows(self, rows: list[list[str]]) -> None:
+        self.log_table.setRowCount(len(rows))
+        for row_idx, row in enumerate(rows):
+            for col_idx, value in enumerate(row):
+                item = QTableWidgetItem(value)
+                if col_idx == 0:
+                    item.setTextAlignment(Qt.AlignCenter)
+                self.log_table.setItem(row_idx, col_idx, item)
+
+    def _format_size(self, raw_size: str) -> str:
+        try:
+            size = int(raw_size)
+        except (TypeError, ValueError):
+            return raw_size
+        if size >= 1024 * 1024 * 1024:
+            return f"{size / (1024 * 1024 * 1024):.1f} GB"
+        if size >= 1024 * 1024:
+            return f"{size / (1024 * 1024):.1f} MB"
+        if size >= 1024:
+            return f"{size / 1024:.1f} KB"
+        return f"{size} B"
 
     def _apply_styles(self) -> None:
         self.setStyleSheet(
             """
             QMainWindow {
+                background: #edf2f5;
+            }
+            #workspaceScroll {
+                border: 0;
                 background: #edf2f5;
             }
             #sidebar {
