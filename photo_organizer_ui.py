@@ -202,7 +202,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.destination_label.setObjectName("pathLabel")
         folder_layout.addWidget(self.destination_label, 3, 0, 1, 2)
 
-        self.dry_run = QCheckBox("Dry run first")
+        self.dry_run = QCheckBox("Preview only")
         self.dry_run.setChecked(True)
         self.dry_run.stateChanged.connect(lambda _state: self._update_run_label())
         self.dry_run.stateChanged.connect(lambda _state: self._update_command_preview())
@@ -334,7 +334,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addWidget(options)
 
         note = QLabel(
-            "The UI calls bulk_image_rename.py with these options. Dry runs do not move files; real runs move "
+            "The UI calls bulk_image_rename.py with these options. Preview mode does not move files; real runs move "
             "media into the destination folder and write duplicates according to the selected action."
         )
         note.setObjectName("muted")
@@ -369,7 +369,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.open_dest_button.setEnabled(False)
         self.results_table.setRowCount(0)
         self.results_status.setText("Sample library reset.")
-        self.status_label.setText("Sample library reset. Ready for a dry scan.")
+        self.status_label.setText("Sample library reset. Ready.")
         self.preview.setText("Waiting for run")
         self.preview.setPixmap(QPixmap())
         self.current_file_label.setText("No file yet.")
@@ -611,7 +611,7 @@ class PhotoOrganizerWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 "Output not created yet",
-                "This was likely a dry run, so the output folder was not created. Opening the source folder instead.",
+                "This was likely a preview run, so the output folder was not created. Opening the source folder instead.",
             )
             self._open_path(root)
             return
