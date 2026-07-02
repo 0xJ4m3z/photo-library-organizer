@@ -163,7 +163,7 @@ class PhotoOrganizerWindow(QMainWindow):
         product_label.setObjectName("eyebrow")
         header.addWidget(product_label)
         header.addStretch(1)
-        self.open_csv_button = QPushButton("Open CSV")
+        self.open_csv_button = QPushButton("Open Report")
         self.open_csv_button.setObjectName("ghostButton")
         self.open_csv_button.clicked.connect(self.open_csv)
         self.open_csv_button.setEnabled(False)
@@ -185,9 +185,9 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_card = QFrame()
         folder_card.setObjectName("panel")
         folder_layout = QGridLayout(folder_card)
-        folder_layout.setContentsMargins(20, 20, 20, 20)
+        folder_layout.setContentsMargins(24, 24, 24, 24)
         folder_layout.setHorizontalSpacing(12)
-        folder_layout.setVerticalSpacing(12)
+        folder_layout.setVerticalSpacing(14)
 
         folder_layout.addWidget(QLabel("Source folder"), 0, 0)
         self.root_path = QLineEdit(SAMPLE_DISPLAY)
@@ -211,11 +211,11 @@ class PhotoOrganizerWindow(QMainWindow):
         self.destination_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         folder_layout.addWidget(self.destination_label, 3, 0, 1, 2)
 
-        self.dry_run = QCheckBox("Preview only")
+        self.dry_run = QCheckBox("Dry run")
         self.dry_run.setChecked(True)
         self.dry_run.stateChanged.connect(lambda _state: self._update_run_label())
         self.dry_run.stateChanged.connect(lambda _state: self._update_command_preview())
-        self.csv_log = QCheckBox("Write CSV log")
+        self.csv_log = QCheckBox("Write report log")
         self.csv_log.setChecked(True)
         self.csv_log.stateChanged.connect(lambda _state: self._update_command_preview())
         folder_layout.addWidget(self.dry_run, 4, 0)
@@ -243,8 +243,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview = QLabel("Waiting for run")
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setMinimumSize(220, 150)
-        self.preview.setMaximumHeight(170)
+        self.preview.setMinimumSize(220, 170)
+        self.preview.setMaximumHeight(190)
         self.current_file_label = QLabel("No file yet.")
         self.current_file_label.setObjectName("muted")
         self.current_file_label.setWordWrap(True)
@@ -256,7 +256,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
         actions_card = QFrame()
         actions_card.setObjectName("panel")
-        actions_card.setMinimumHeight(320)
+        actions_card.setMinimumHeight(300)
         actions_layout = QVBoxLayout(actions_card)
         actions_layout.setContentsMargins(18, 14, 18, 14)
         actions_layout.setSpacing(8)
@@ -268,7 +268,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results_table.verticalHeader().setVisible(False)
         self.results_table.setAlternatingRowColors(True)
-        self.results_table.setMinimumHeight(250)
+        self.results_table.setMinimumHeight(220)
         self.results_table.verticalHeader().setDefaultSectionSize(28)
         self.results_status = QLabel("No run loaded yet.")
         self.results_status.setObjectName("muted")
@@ -343,7 +343,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addWidget(options)
 
         note = QLabel(
-            "The UI calls bulk_image_rename.py with these options. Preview mode does not move files; real runs move "
+            "The UI calls bulk_image_rename.py with these options. Dry runs do not move files; real runs move "
             "media into the destination folder and write duplicates according to the selected action."
         )
         note.setObjectName("muted")
@@ -611,7 +611,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
     def _load_csv_results(self) -> None:
         if not self.latest_csv_path or not self.latest_csv_path.exists():
-            self.results_status.setText("No CSV log was written.")
+            self.results_status.setText("No report was written.")
             return
 
         rows: list[list[str]] = []
@@ -630,12 +630,12 @@ class PhotoOrganizerWindow(QMainWindow):
         for row_idx, row in enumerate(rows):
             for col_idx, value in enumerate(row):
                 self.results_table.setItem(row_idx, col_idx, make_item(value, align_center=col_idx == 0))
-        self.results_status.setText(f"Loaded {len(rows)} CSV rows from {self.latest_csv_path}")
+        self.results_status.setText(f"Loaded {len(rows)} report rows from {self.latest_csv_path}")
         self.open_csv_button.setEnabled(True)
 
     def open_csv(self) -> None:
         if not self.latest_csv_path or not self.latest_csv_path.exists():
-            QMessageBox.information(self, "CSV not ready", "Run with CSV logging enabled first.")
+            QMessageBox.information(self, "Report not ready", "Run with report logging enabled first.")
             return
         self._open_path(self.latest_csv_path)
 
@@ -649,7 +649,7 @@ class PhotoOrganizerWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 "Output not created yet",
-                "This was likely a preview run, so the output folder was not created. Opening the source folder instead.",
+                "This was likely a dry run, so the output folder was not created. Opening the source folder instead.",
             )
             self._open_path(root)
             return
