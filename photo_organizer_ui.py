@@ -157,7 +157,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.setSpacing(18)
 
         header = QHBoxLayout()
-        product_label = QLabel("PYTHON MEDIA ORGANIZER")
+        product_label = QLabel("ORGANIZE, RENAME, AND SORT YOUR PHOTOS")
         product_label.setObjectName("eyebrow")
         header.addWidget(product_label)
         header.addStretch(1)
@@ -714,6 +714,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 border-radius: 8px;
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2f80ed, stop:1 #1f9d68);
                 color: #ffffff;
+                font-size: 15px;
                 font-weight: 900;
             }
             #brandTitle {
