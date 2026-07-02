@@ -191,6 +191,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
         folder_layout.addWidget(QLabel("Source folder"), 0, 0)
         self.root_path = QLineEdit(SAMPLE_DISPLAY)
+        self.root_path.setMinimumHeight(40)
         self.root_path.setToolTip(str(SAMPLE_SOURCE))
         self.root_path.textChanged.connect(self._update_command_preview)
         self.root_path.textChanged.connect(self._update_folder_labels)
@@ -206,6 +207,8 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.addWidget(QLabel("Destination folder"), 2, 0)
         self.destination_label = QLabel()
         self.destination_label.setObjectName("pathLabel")
+        self.destination_label.setMinimumHeight(40)
+        self.destination_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         folder_layout.addWidget(self.destination_label, 3, 0, 1, 2)
 
         self.dry_run = QCheckBox("Preview only")
@@ -801,7 +804,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 border-radius: 8px;
                 color: #172026;
                 font-weight: 800;
-                padding: 9px;
+                padding: 0 12px;
             }
             #preview {
                 background: #f8fafb;
@@ -825,7 +828,15 @@ class PhotoOrganizerWindow(QMainWindow):
                 color: #65717a;
                 font-weight: 700;
             }
-            QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
+            QLineEdit, QComboBox, QSpinBox {
+                border: 1px solid #d9e0e5;
+                border-radius: 8px;
+                background: #f8fafb;
+                color: #172026;
+                padding: 0 12px;
+                font-weight: 700;
+            }
+            QPlainTextEdit {
                 border: 1px solid #d9e0e5;
                 border-radius: 8px;
                 background: #f8fafb;
