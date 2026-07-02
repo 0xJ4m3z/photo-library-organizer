@@ -228,6 +228,7 @@ class PhotoOrganizerWindow(QMainWindow):
         options_row.addStretch(1)
         options_row.addWidget(self.csv_log)
         folder_layout.addWidget(options_container)
+        folder_layout.addSpacing(16)
 
         self.status_label = QLabel("Ready.")
         self.status_label.setObjectName("statusLabel")
@@ -236,7 +237,6 @@ class PhotoOrganizerWindow(QMainWindow):
         self.progress.setValue(0)
         self.stats_label = QLabel("Moved 0 | Renamed 0 | Duplicates 0 | Skipped 0")
         self.stats_label.setObjectName("muted")
-        folder_layout.addSpacing(10)
         folder_layout.addWidget(self.status_label)
         folder_layout.addWidget(self.progress)
         folder_layout.addWidget(self.stats_label)
