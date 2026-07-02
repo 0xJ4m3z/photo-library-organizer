@@ -1,7 +1,10 @@
 import csv
 import os
 import re
+import shutil
+import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
@@ -630,6 +633,51 @@ class PhotoOrganizerWindow(QMainWindow):
 
     def _ensure_sample_library(self, force: bool = False) -> None:
         SAMPLE_SOURCE.mkdir(parents=True, exist_ok=True)
+        if force:
+            self._clean_sample_outputs()
+            self._restore_tracked_sample_files()
+        elif not self._has_sample_source_media():
+            self._restore_tracked_sample_files()
+        self._stamp_sample_times()
+
+    def _clean_sample_outputs(self) -> None:
+        for folder_name in ("all_photos", "_DUPLICATES"):
+            folder = SAMPLE_SOURCE / folder_name
+            if folder.exists():
+                shutil.rmtree(folder)
+        for csv_path in SAMPLE_SOURCE.glob("*.csv"):
+            csv_path.unlink()
+
+    def _restore_tracked_sample_files(self) -> None:
+        try:
+            subprocess.run(
+                ["git", "restore", "--source=HEAD", "--", str(SAMPLE_SOURCE.relative_to(ROOT))],
+                cwd=ROOT,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            return
+
+    def _stamp_sample_times(self) -> None:
+        files = [
+            path
+            for path in SAMPLE_SOURCE.iterdir()
+            if path.is_file() and path.suffix.lower() in TARGET_EXTS
+        ]
+
+        def sample_key(path: Path) -> tuple[int, str]:
+            try:
+                return int(path.stem), path.name
+            except ValueError:
+                return 10_000, path.name
+
+        base = datetime(2021, 1, 16, 10, 30, 0)
+        for idx, path in enumerate(sorted(files, key=sample_key)):
+            stamp = base + timedelta(days=idx * 43, hours=idx, minutes=idx * 3)
+            ts = stamp.timestamp()
+            os.utime(path, (ts, ts))
 
     def _apply_styles(self) -> None:
         self.setStyleSheet(
