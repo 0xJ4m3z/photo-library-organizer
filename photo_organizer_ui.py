@@ -38,6 +38,7 @@ ROOT = Path(__file__).resolve().parent
 SCRIPT = ROOT / "bulk_image_rename.py"
 SAMPLE_ROOT = ROOT / "sample_images"
 SAMPLE_SOURCE = SAMPLE_ROOT / "sample-pngs"
+SAMPLE_DISPLAY = str(Path("sample_images") / "sample-pngs")
 TARGET_EXTS = {".jpg", ".jpeg", ".png", ".cr2", ".dng", ".mov", ".avi", ".3gp", ".gif", ".mp4"}
 PROGRESS_RE = re.compile(
     r"\[PROC\]\s+([\d,]+)/([\d,]+)\s+\(\s*([\d.]+)%\).*?"
@@ -97,7 +98,6 @@ class PhotoOrganizerWindow(QMainWindow):
         self._update_sample_count()
         self._update_folder_labels()
         self._update_command_preview()
-        self._show_source_path_start()
 
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
@@ -189,12 +189,11 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.setVerticalSpacing(12)
 
         folder_layout.addWidget(QLabel("Source folder"), 0, 0)
-        self.root_path = QLineEdit(str(SAMPLE_SOURCE))
-        self.root_path.setMinimumWidth(380)
+        self.root_path = QLineEdit(SAMPLE_DISPLAY)
         self.root_path.setToolTip(str(SAMPLE_SOURCE))
         self.root_path.textChanged.connect(self._update_command_preview)
         self.root_path.textChanged.connect(self._update_folder_labels)
-        self.root_path.textChanged.connect(self.root_path.setToolTip)
+        self.root_path.textChanged.connect(lambda _text: self._sync_source_tooltip())
         browse = QPushButton("Browse")
         browse.setObjectName("ghostButton")
         browse.clicked.connect(self.choose_root)
@@ -356,10 +355,9 @@ class PhotoOrganizerWindow(QMainWindow):
             button.style().polish(button)
 
     def choose_root(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, "Choose media root", self.root_path.text())
+        folder = QFileDialog.getExistingDirectory(self, "Choose media root", str(self._root_from_field()))
         if folder:
             self.root_path.setText(folder)
-            self._show_source_path_start()
             self._update_sample_count()
             self._update_folder_labels()
 
@@ -368,8 +366,7 @@ class PhotoOrganizerWindow(QMainWindow):
             QMessageBox.information(self, "Run in progress", "Stop the current run before resetting the sample library.")
             return
         self._ensure_sample_library(force=True)
-        self.root_path.setText(str(SAMPLE_SOURCE))
-        self._show_source_path_start()
+        self.root_path.setText(SAMPLE_DISPLAY)
         self.latest_csv_path = None
         self.dest_root = None
         self.open_csv_button.setEnabled(False)
@@ -391,7 +388,7 @@ class PhotoOrganizerWindow(QMainWindow):
             self.status_label.setText("Stopping...")
             return
 
-        root = Path(self.root_path.text()).expanduser()
+        root = self._root_from_field()
         if not root.exists():
             QMessageBox.warning(self, "Folder not found", f"The selected root folder does not exist:\n{root}")
             return
@@ -451,23 +448,37 @@ class PhotoOrganizerWindow(QMainWindow):
     def _update_command_preview(self) -> None:
         if not hasattr(self, "command_preview"):
             return
-        root = Path(self.root_path.text()).expanduser() if self.root_path.text() else SAMPLE_ROOT
+        root = self._root_from_field()
         parts = [sys.executable] + self._build_args(root)
         self.command_preview.setPlainText(" ".join(f'"{part}"' if " " in part else part for part in parts))
 
     def _update_folder_labels(self) -> None:
         if not hasattr(self, "destination_label"):
             return
-        root = Path(self.root_path.text()).expanduser() if self.root_path.text() else SAMPLE_ROOT
+        root = self._root_from_field()
         destination = root / self.dest_name.text().strip()
-        self.destination_label.setText(str(destination))
+        self.destination_label.setText(self._display_path(destination))
         self.destination_label.setToolTip(str(destination))
 
-    def _show_source_path_start(self) -> None:
+    def _root_from_field(self) -> Path:
+        raw_path = self.root_path.text().strip() if hasattr(self, "root_path") else ""
+        if not raw_path:
+            return SAMPLE_SOURCE
+        path = Path(raw_path).expanduser()
+        if not path.is_absolute():
+            path = ROOT / path
+        return path
+
+    def _display_path(self, path: Path) -> str:
+        try:
+            return str(path.resolve().relative_to(ROOT))
+        except ValueError:
+            return str(path)
+
+    def _sync_source_tooltip(self) -> None:
         if not hasattr(self, "root_path"):
             return
-        self.root_path.setCursorPosition(0)
-        self.root_path.deselect()
+        self.root_path.setToolTip(str(self._root_from_field()))
 
     def _update_run_label(self) -> None:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
@@ -577,7 +588,7 @@ class PhotoOrganizerWindow(QMainWindow):
         else:
             self.status_label.setText(f"Stopped with exit code {exit_code}. See output for details.")
         self._load_csv_results()
-        root = Path(self.root_path.text()).expanduser()
+        root = self._root_from_field()
         if (self.dest_root and self.dest_root.exists()) or root.exists():
             self.open_dest_button.setEnabled(True)
 
@@ -620,7 +631,7 @@ class PhotoOrganizerWindow(QMainWindow):
             self._open_path(self.dest_root)
             return
 
-        root = Path(self.root_path.text()).expanduser()
+        root = self._root_from_field()
         if root.exists():
             QMessageBox.information(
                 self,
