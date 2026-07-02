@@ -2,6 +2,7 @@
 
 A Windows-friendly Python tool made to safely organize large photo and video libraries by consolidating files, standardizing filenames, and isolating duplicates when found.
 
+![Photo Library Organizer desktop UI](screenshots/photo-library-organizer-ui.png)
 
 **No re-encoding. No quality loss.**  
 Files are only **moved and renamed**.
@@ -72,7 +73,7 @@ pip install -r requirements.txt
 python photo_organizer_ui.py
 ```
 
-The UI opens on a generated `sample_images/` folder by default so you can run a safe demo immediately. Use **Run dry scan** to preview the organizer, uncheck **Dry run first** to run the sample for real, and use **Reset sample** to recreate the demo folder.
+The UI opens on the included `sample_images/sample-pngs` demo set by default. Use **Dry run** to preview the organizer, uncheck it to run the sample for real, and use **Reset Sample** to restore the demo files.
 
 ### Dry run (always do this first)
 ```powershell
@@ -133,7 +134,7 @@ The portfolio-friendly desktop UI is built with PySide6:
 python photo_organizer_ui.py
 ```
 
-It opens a native dashboard for configuring dry runs, duplicate handling, CSV logs, year-folder organization, and launching the real organizer script.
+It opens a native dashboard for configuring dry runs, duplicate handling, report logs, year-folder organization, and launching the real organizer script.
 
 A static browser mockup is also included in `web/` if you want a quick web screenshot.
 
