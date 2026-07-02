@@ -1,7 +1,6 @@
 import csv
 import os
 import re
-import shutil
 import sys
 from pathlib import Path
 
@@ -36,7 +35,6 @@ ROOT = Path(__file__).resolve().parent
 SCRIPT = ROOT / "bulk_image_rename.py"
 SAMPLE_ROOT = ROOT / "sample_images"
 SAMPLE_SOURCE = SAMPLE_ROOT / "sample-pngs"
-SAMPLE_WORKING = SAMPLE_ROOT / "demo_run"
 TARGET_EXTS = {".jpg", ".jpeg", ".png", ".cr2", ".dng", ".mov", ".avi", ".3gp", ".gif", ".mp4"}
 PROGRESS_RE = re.compile(
     r"\[PROC\]\s+([\d,]+)/([\d,]+)\s+\(\s*([\d.]+)%\).*?"
@@ -190,7 +188,7 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.setVerticalSpacing(10)
 
         folder_layout.addWidget(QLabel("Source folder"), 0, 0)
-        self.root_path = QLineEdit(str(SAMPLE_WORKING))
+        self.root_path = QLineEdit(str(SAMPLE_SOURCE))
         self.root_path.textChanged.connect(self._update_command_preview)
         self.root_path.textChanged.connect(self._update_folder_labels)
         browse = QPushButton("Browse")
@@ -370,7 +368,7 @@ class PhotoOrganizerWindow(QMainWindow):
             QMessageBox.information(self, "Run in progress", "Stop the current run before resetting the sample library.")
             return
         self._ensure_sample_library(force=True)
-        self.root_path.setText(str(SAMPLE_WORKING))
+        self.root_path.setText(str(SAMPLE_SOURCE))
         self.latest_csv_path = None
         self.dest_root = None
         self.open_csv_button.setEnabled(False)
@@ -506,7 +504,7 @@ class PhotoOrganizerWindow(QMainWindow):
             action, source, destination = match.group(1), match.group(2), match.group(3) or ""
             source_path = Path(source)
             destination_path = Path(destination) if destination else None
-            preview_path = source_path if source_path.exists() else destination_path
+            preview_path = self._resolve_preview_path(source_path, destination_path)
             if preview_path:
                 self._show_current_media(preview_path)
             self._append_action_row([action, source, destination, "", ""])
@@ -537,6 +535,17 @@ class PhotoOrganizerWindow(QMainWindow):
                 Qt.TransformationMode.SmoothTransformation,
             )
         )
+
+    def _resolve_preview_path(self, source_path: Path, destination_path: Path | None) -> Path | None:
+        if source_path.exists():
+            return source_path
+        if destination_path and destination_path.exists():
+            return destination_path
+        if destination_path and self.dest_root and self.dest_root.exists():
+            for candidate in self.dest_root.rglob(destination_path.name):
+                if candidate.is_file():
+                    return candidate
+        return destination_path or source_path
 
     def _process_finished(self, exit_code: int, _exit_status) -> None:
         self._update_run_label()
@@ -629,27 +638,7 @@ class PhotoOrganizerWindow(QMainWindow):
         return self._sample_media_count() > 0
 
     def _ensure_sample_library(self, force: bool = False) -> None:
-        if force and SAMPLE_WORKING.exists():
-            shutil.rmtree(SAMPLE_WORKING)
-        if SAMPLE_WORKING.exists() and any(
-            path.is_file() and path.suffix.lower() in TARGET_EXTS
-            for path in SAMPLE_WORKING.rglob("*")
-            if "all_photos" not in path.parts
-        ):
-            return
-
         SAMPLE_SOURCE.mkdir(parents=True, exist_ok=True)
-        if not self._has_sample_source_media():
-            SAMPLE_WORKING.mkdir(parents=True, exist_ok=True)
-            return
-
-        if SAMPLE_WORKING.exists():
-            shutil.rmtree(SAMPLE_WORKING)
-        for source in SAMPLE_SOURCE.rglob("*"):
-            if source.is_file() and source.suffix.lower() in TARGET_EXTS:
-                target = SAMPLE_WORKING / source.relative_to(SAMPLE_SOURCE)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, target)
 
     def _apply_styles(self) -> None:
         self.setStyleSheet(
