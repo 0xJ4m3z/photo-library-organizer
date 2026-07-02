@@ -75,6 +75,8 @@ python photo_organizer_ui.py
 
 The UI opens on the included `sample_images/sample-pngs` demo set by default. Use **Dry run** to preview the organizer, uncheck it to run the sample for real, and use **Reset Sample** to restore the demo files.
 
+The desktop UI provides a native dashboard for configuring dry runs, duplicate handling, report logs, year-folder organization, and launching the real organizer script.
+
 ### Dry run (always do this first)
 ```powershell
 python -u bulk_image_rename.py "E:\" --dry-run --log-csv dry_run.csv
@@ -125,16 +127,6 @@ ROOT/
 ```
 
 ---
-
-## Portfolio UI
-
-The portfolio-friendly desktop UI is built with PySide6:
-
-```powershell
-python photo_organizer_ui.py
-```
-
-It opens a native dashboard for configuring dry runs, duplicate handling, report logs, year-folder organization, and launching the real organizer script.
 
 A static browser mockup is also included in `web/` if you want a quick web screenshot.
 
