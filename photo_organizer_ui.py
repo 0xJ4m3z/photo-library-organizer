@@ -3,11 +3,10 @@ import os
 import re
 import shutil
 import sys
-import time
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices, QFont, QImage, QLinearGradient, QPainter, QPixmap
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QFont, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -36,7 +35,8 @@ from PySide6.QtWidgets import (
 ROOT = Path(__file__).resolve().parent
 SCRIPT = ROOT / "bulk_image_rename.py"
 SAMPLE_ROOT = ROOT / "sample_images"
-SAMPLE_IMPORT = SAMPLE_ROOT / "raw_import"
+SAMPLE_SOURCE = SAMPLE_ROOT / "sample-pngs"
+SAMPLE_WORKING = SAMPLE_ROOT / "demo_run"
 TARGET_EXTS = {".jpg", ".jpeg", ".png", ".cr2", ".dng", ".mov", ".avi", ".3gp", ".gif", ".mp4"}
 PROGRESS_RE = re.compile(
     r"\[PROC\]\s+([\d,]+)/([\d,]+)\s+\(\s*([\d.]+)%\).*?"
@@ -44,28 +44,6 @@ PROGRESS_RE = re.compile(
     re.IGNORECASE,
 )
 ACTION_RE = re.compile(r"^(?:\[DRY\])?\[([^\]]+)\]\s+(.+?)(?:\s+->\s+(.+))?$")
-SAMPLE_FILES = [
-    ("beach-sunset.jpg", "Beach Sunset", "#f6b75a", "#305f8f", 0),
-    ("mountain-trail.jpg", "Mountain Trail", "#8ecae6", "#2d6a4f", 37),
-    ("birthday-table.jpg", "Birthday Table", "#f7cad0", "#9d4edd", 82),
-    ("city-night.jpg", "City Night", "#1b263b", "#fca311", 126),
-    ("dog-park.jpg", "Dog Park", "#95d5b2", "#6c584c", 173),
-    ("concert-lights.jpg", "Concert Lights", "#3a0ca3", "#f72585", 218),
-    ("snowy-cabin.jpg", "Snowy Cabin", "#dbeafe", "#31572c", 264),
-    ("pasta-dinner.jpg", "Pasta Dinner", "#ffd166", "#bc4749", 301),
-    ("lake-canoe.jpg", "Lake Canoe", "#74c0fc", "#184e77", 349),
-    ("garden-flowers.jpg", "Garden Flowers", "#b7e4c7", "#d63384", 393),
-    ("family-scan.jpg", "Family Scan", "#e9dcc9", "#6c584c", 438),
-    ("water-dog.jpg", "Water Dog", "#90e0ef", "#0077b6", 482),
-    ("desert-road.jpg", "Desert Road", "#f4a261", "#264653", 527),
-    ("forest-path.jpg", "Forest Path", "#40916c", "#081c15", 571),
-    ("museum-day.jpg", "Museum Day", "#dee2e6", "#495057", 616),
-    ("coffee-window.jpg", "Coffee Window", "#c9ada7", "#4a4e69", 660),
-    ("harbor-boats.jpg", "Harbor Boats", "#a8dadc", "#1d3557", 704),
-    ("autumn-leaves.jpg", "Autumn Leaves", "#e76f51", "#6a994e", 749),
-    ("market-stall.jpg", "Market Stall", "#ffbe0b", "#fb5607", 793),
-    ("rainy-street.jpg", "Rainy Street", "#4a5568", "#90cdf4", 838),
-]
 
 
 def make_item(value: str, align_center: bool = False) -> QTableWidgetItem:
@@ -212,7 +190,7 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.setVerticalSpacing(10)
 
         folder_layout.addWidget(QLabel("Source folder"), 0, 0)
-        self.root_path = QLineEdit(str(SAMPLE_ROOT))
+        self.root_path = QLineEdit(str(SAMPLE_WORKING))
         self.root_path.textChanged.connect(self._update_command_preview)
         self.root_path.textChanged.connect(self._update_folder_labels)
         browse = QPushButton("Browse")
@@ -392,7 +370,7 @@ class PhotoOrganizerWindow(QMainWindow):
             QMessageBox.information(self, "Run in progress", "Stop the current run before resetting the sample library.")
             return
         self._ensure_sample_library(force=True)
-        self.root_path.setText(str(SAMPLE_ROOT))
+        self.root_path.setText(str(SAMPLE_WORKING))
         self.latest_csv_path = None
         self.dest_root = None
         self.open_csv_button.setEnabled(False)
@@ -636,11 +614,11 @@ class PhotoOrganizerWindow(QMainWindow):
             QMessageBox.warning(self, "Could not open path", str(path))
 
     def _sample_media_count(self) -> int:
-        if not SAMPLE_ROOT.exists():
+        if not SAMPLE_SOURCE.exists():
             return 0
         return sum(
             1
-            for path in SAMPLE_ROOT.rglob("*")
+            for path in SAMPLE_SOURCE.rglob("*")
             if "all_photos" not in path.parts and path.is_file() and path.suffix.lower() in TARGET_EXTS
         )
 
@@ -651,57 +629,27 @@ class PhotoOrganizerWindow(QMainWindow):
         return self._sample_media_count() > 0
 
     def _ensure_sample_library(self, force: bool = False) -> None:
-        if force and SAMPLE_ROOT.exists():
-            shutil.rmtree(SAMPLE_ROOT)
-        if self._has_sample_source_media():
+        if force and SAMPLE_WORKING.exists():
+            shutil.rmtree(SAMPLE_WORKING)
+        if SAMPLE_WORKING.exists() and any(
+            path.is_file() and path.suffix.lower() in TARGET_EXTS
+            for path in SAMPLE_WORKING.rglob("*")
+            if "all_photos" not in path.parts
+        ):
             return
 
-        SAMPLE_IMPORT.mkdir(parents=True, exist_ok=True)
-        base_time = int(time.time()) - (86400 * 120)
+        SAMPLE_SOURCE.mkdir(parents=True, exist_ok=True)
+        if not self._has_sample_source_media():
+            SAMPLE_WORKING.mkdir(parents=True, exist_ok=True)
+            return
 
-        for idx, (filename, title, color_a, color_b, minute_offset) in enumerate(SAMPLE_FILES):
-            target = SAMPLE_IMPORT / filename
-            self._write_sample_image(target, title, color_a, color_b, idx)
-            ts = base_time + (minute_offset * 60)
-            os.utime(target, (ts, ts))
-
-    def _write_sample_image(self, target: Path, title: str, color_a: str, color_b: str, idx: int) -> None:
-        width = 960 + (idx % 5) * 41
-        height = 640 + (idx % 4) * 37
-        image = QImage(width, height, QImage.Format.Format_RGB32)
-
-        painter = QPainter(image)
-        gradient = QLinearGradient(0, 0, width, height)
-        gradient.setColorAt(0, QColor(color_a))
-        gradient.setColorAt(1, QColor(color_b))
-        painter.fillRect(0, 0, width, height, gradient)
-
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        for shape_idx in range(7 + idx):
-            x = (shape_idx * 97 + idx * 31) % width
-            y = (shape_idx * 61 + idx * 47) % height
-            size = 42 + ((shape_idx + idx) % 6) * 18
-            color = QColor(255, 255, 255, 34 + (shape_idx % 5) * 18)
-            painter.setBrush(QBrush(color))
-            painter.setPen(Qt.PenStyle.NoPen)
-            if shape_idx % 2:
-                painter.drawEllipse(x, y, size, size)
-            else:
-                painter.drawRoundedRect(x, y, size + 38, size, 16, 16)
-
-        painter.setPen(QColor("#ffffff"))
-        font = QFont("Arial", 42)
-        font.setBold(True)
-        painter.setFont(font)
-        painter.drawText(38, height - 86, title)
-
-        painter.setPen(QColor(255, 255, 255, 190))
-        painter.setFont(QFont("Arial", 18))
-        painter.drawText(42, height - 48, f"Sample media {idx + 1:02d}")
-        painter.end()
-
-        quality = 72 + (idx % 9) * 3
-        image.save(str(target), "JPEG", quality)
+        if SAMPLE_WORKING.exists():
+            shutil.rmtree(SAMPLE_WORKING)
+        for source in SAMPLE_SOURCE.rglob("*"):
+            if source.is_file() and source.suffix.lower() in TARGET_EXTS:
+                target = SAMPLE_WORKING / source.relative_to(SAMPLE_SOURCE)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
 
     def _apply_styles(self) -> None:
         self.setStyleSheet(
