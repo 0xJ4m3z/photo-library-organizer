@@ -100,8 +100,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self._ensure_sample_library()
 
         self.setWindowTitle("Photo Library Organizer")
-        self.resize(1200, 820)
-        self.setMinimumSize(980, 720)
+        self.resize(1200, 760)
+        self.setMinimumSize(980, 680)
 
         shell = QWidget()
         self.setCentralWidget(shell)
@@ -177,19 +177,11 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_run_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 28, 30, 28)
-        layout.setSpacing(18)
+        layout.setContentsMargins(30, 22, 30, 22)
+        layout.setSpacing(14)
 
         header = QHBoxLayout()
-        heading = QVBoxLayout()
-        eyebrow = QLabel("Python media organizer")
-        eyebrow.setObjectName("eyebrow")
-        title = QLabel("Run the organizer and watch what happens.")
-        title.setObjectName("pageTitle")
-        heading.addWidget(eyebrow)
-        heading.addWidget(title)
-        header.addLayout(heading, 1)
-
+        header.addStretch(1)
         self.open_csv_button = QPushButton("Open CSV")
         self.open_csv_button.setObjectName("ghostButton")
         self.open_csv_button.clicked.connect(self.open_csv)
@@ -245,15 +237,15 @@ class PhotoOrganizerWindow(QMainWindow):
         preview_card = QFrame()
         preview_card.setObjectName("panel")
         preview_layout = QVBoxLayout(preview_card)
-        preview_layout.setContentsMargins(18, 18, 18, 18)
-        preview_layout.setSpacing(10)
+        preview_layout.setContentsMargins(16, 14, 16, 14)
+        preview_layout.setSpacing(8)
         preview_title = QLabel("Current image")
         preview_title.setObjectName("sectionTitle")
         self.preview = QLabel("Waiting for run")
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setMinimumSize(220, 120)
-        self.preview.setMaximumHeight(140)
+        self.preview.setMinimumSize(220, 108)
+        self.preview.setMaximumHeight(126)
         self.current_file_label = QLabel("No file yet.")
         self.current_file_label.setObjectName("muted")
         self.current_file_label.setWordWrap(True)
@@ -266,8 +258,8 @@ class PhotoOrganizerWindow(QMainWindow):
         progress_card = QFrame()
         progress_card.setObjectName("panel")
         progress_layout = QVBoxLayout(progress_card)
-        progress_layout.setContentsMargins(18, 18, 18, 18)
-        progress_layout.setSpacing(10)
+        progress_layout.setContentsMargins(18, 14, 18, 14)
+        progress_layout.setSpacing(8)
         self.status_label = QLabel("Ready.")
         self.status_label.setObjectName("statusLabel")
         self.progress = QProgressBar()
@@ -282,10 +274,10 @@ class PhotoOrganizerWindow(QMainWindow):
 
         actions_card = QFrame()
         actions_card.setObjectName("panel")
-        actions_card.setMinimumHeight(300)
+        actions_card.setMinimumHeight(280)
         actions_layout = QVBoxLayout(actions_card)
-        actions_layout.setContentsMargins(18, 18, 18, 18)
-        actions_layout.setSpacing(10)
+        actions_layout.setContentsMargins(18, 14, 18, 14)
+        actions_layout.setSpacing(8)
         actions_label = QLabel("Actions")
         actions_label.setObjectName("sectionTitle")
         self.results_table = QTableWidget(0, 5)
@@ -294,8 +286,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results_table.verticalHeader().setVisible(False)
         self.results_table.setAlternatingRowColors(True)
-        self.results_table.setMinimumHeight(238)
-        self.results_table.verticalHeader().setDefaultSectionSize(30)
+        self.results_table.setMinimumHeight(210)
+        self.results_table.verticalHeader().setDefaultSectionSize(28)
         self.results_status = QLabel("No run loaded yet.")
         self.results_status.setObjectName("muted")
         actions_layout.addWidget(actions_label)
@@ -573,7 +565,8 @@ class PhotoOrganizerWindow(QMainWindow):
         else:
             self.status_label.setText(f"Stopped with exit code {exit_code}. See output for details.")
         self._load_csv_results()
-        if self.dest_root and self.dest_root.exists():
+        root = Path(self.root_path.text()).expanduser()
+        if (self.dest_root and self.dest_root.exists()) or root.exists():
             self.open_dest_button.setEnabled(True)
 
     def _process_error(self, error) -> None:
@@ -608,13 +601,36 @@ class PhotoOrganizerWindow(QMainWindow):
         if not self.latest_csv_path or not self.latest_csv_path.exists():
             QMessageBox.information(self, "CSV not ready", "Run with CSV logging enabled first.")
             return
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.latest_csv_path)))
+        self._open_path(self.latest_csv_path)
 
     def open_output_folder(self) -> None:
-        if not self.dest_root or not self.dest_root.exists():
-            QMessageBox.information(self, "Output not ready", "Run the organizer first.")
+        if self.dest_root and self.dest_root.exists():
+            self._open_path(self.dest_root)
             return
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.dest_root)))
+
+        root = Path(self.root_path.text()).expanduser()
+        if root.exists():
+            QMessageBox.information(
+                self,
+                "Output not created yet",
+                "This was likely a dry run, so the output folder was not created. Opening the source folder instead.",
+            )
+            self._open_path(root)
+            return
+
+        QMessageBox.information(self, "Output not ready", "Run the organizer first.")
+
+    def _open_path(self, path: Path) -> None:
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(str(path))  # type: ignore[attr-defined]
+                return
+        except OSError as exc:
+            QMessageBox.warning(self, "Could not open path", str(exc))
+            return
+
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+            QMessageBox.warning(self, "Could not open path", str(path))
 
     def _sample_media_count(self) -> int:
         if not SAMPLE_ROOT.exists():
