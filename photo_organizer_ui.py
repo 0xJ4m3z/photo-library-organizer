@@ -100,8 +100,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self._ensure_sample_library()
 
         self.setWindowTitle("Photo Library Organizer")
-        self.resize(1200, 760)
-        self.setMinimumSize(980, 640)
+        self.resize(1200, 820)
+        self.setMinimumSize(980, 720)
 
         shell = QWidget()
         self.setCentralWidget(shell)
@@ -252,8 +252,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview = QLabel("Waiting for run")
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setMinimumSize(220, 150)
-        self.preview.setMaximumHeight(170)
+        self.preview.setMinimumSize(220, 120)
+        self.preview.setMaximumHeight(140)
         self.current_file_label = QLabel("No file yet.")
         self.current_file_label.setObjectName("muted")
         self.current_file_label.setWordWrap(True)
@@ -282,6 +282,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
         actions_card = QFrame()
         actions_card.setObjectName("panel")
+        actions_card.setMinimumHeight(300)
         actions_layout = QVBoxLayout(actions_card)
         actions_layout.setContentsMargins(18, 18, 18, 18)
         actions_layout.setSpacing(10)
@@ -293,6 +294,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results_table.verticalHeader().setVisible(False)
         self.results_table.setAlternatingRowColors(True)
+        self.results_table.setMinimumHeight(238)
+        self.results_table.verticalHeader().setDefaultSectionSize(30)
         self.results_status = QLabel("No run loaded yet.")
         self.results_status.setObjectName("muted")
         actions_layout.addWidget(actions_label)
