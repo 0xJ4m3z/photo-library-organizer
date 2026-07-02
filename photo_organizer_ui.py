@@ -193,7 +193,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.open_dest_button.setObjectName("ghostButton")
         self.open_dest_button.clicked.connect(self.open_output_folder)
         self.open_dest_button.setEnabled(False)
-        self.run_button = QPushButton("Run Dry Scan")
+        self.run_button = QPushButton("Run Scan")
         self.run_button.setObjectName("primaryButton")
         self.run_button.clicked.connect(self.run_organizer)
         header.addWidget(self.open_csv_button)
@@ -489,7 +489,7 @@ class PhotoOrganizerWindow(QMainWindow):
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             self.run_button.setText("Stop")
         else:
-            self.run_button.setText("Run Dry Scan" if self.dry_run.isChecked() else "Run Organizer")
+            self.run_button.setText("Run Scan" if self.dry_run.isChecked() else "Run Organizer")
 
     def _read_stdout(self) -> None:
         if not self.process:
@@ -745,14 +745,14 @@ class PhotoOrganizerWindow(QMainWindow):
             }
             #navActive {
                 text-align: left;
-                border: 1px solid #2185d0;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2f80ed, stop:1 #1f9d68);
+                border: 1px solid #172026;
+                background: #172026;
                 color: #ffffff;
             }
             #primaryButton {
                 text-align: center;
-                border: 1px solid #2185d0;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2f80ed, stop:1 #1f9d68);
+                border: 1px solid #172026;
+                background: #172026;
                 color: #ffffff;
             }
             #ghostButton {
