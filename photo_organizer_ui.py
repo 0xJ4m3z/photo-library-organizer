@@ -97,6 +97,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self._update_sample_count()
         self._update_folder_labels()
         self._update_command_preview()
+        self._show_source_path_start()
 
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
@@ -189,11 +190,15 @@ class PhotoOrganizerWindow(QMainWindow):
 
         folder_layout.addWidget(QLabel("Source folder"), 0, 0)
         self.root_path = QLineEdit(str(SAMPLE_SOURCE))
+        self.root_path.setMinimumWidth(380)
+        self.root_path.setToolTip(str(SAMPLE_SOURCE))
         self.root_path.textChanged.connect(self._update_command_preview)
         self.root_path.textChanged.connect(self._update_folder_labels)
+        self.root_path.textChanged.connect(self.root_path.setToolTip)
         browse = QPushButton("Browse")
         browse.setObjectName("ghostButton")
         browse.clicked.connect(self.choose_root)
+        folder_layout.setColumnStretch(0, 1)
         folder_layout.addWidget(self.root_path, 1, 0)
         folder_layout.addWidget(browse, 1, 1)
 
@@ -354,6 +359,7 @@ class PhotoOrganizerWindow(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Choose media root", self.root_path.text())
         if folder:
             self.root_path.setText(folder)
+            self._show_source_path_start()
             self._update_sample_count()
             self._update_folder_labels()
 
@@ -363,6 +369,7 @@ class PhotoOrganizerWindow(QMainWindow):
             return
         self._ensure_sample_library(force=True)
         self.root_path.setText(str(SAMPLE_SOURCE))
+        self._show_source_path_start()
         self.latest_csv_path = None
         self.dest_root = None
         self.open_csv_button.setEnabled(False)
@@ -454,6 +461,13 @@ class PhotoOrganizerWindow(QMainWindow):
         root = Path(self.root_path.text()).expanduser() if self.root_path.text() else SAMPLE_ROOT
         destination = root / self.dest_name.text().strip()
         self.destination_label.setText(str(destination))
+        self.destination_label.setToolTip(str(destination))
+
+    def _show_source_path_start(self) -> None:
+        if not hasattr(self, "root_path"):
+            return
+        self.root_path.setCursorPosition(0)
+        self.root_path.deselect()
 
     def _update_run_label(self) -> None:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
