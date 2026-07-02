@@ -181,6 +181,9 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.setSpacing(14)
 
         header = QHBoxLayout()
+        product_label = QLabel("PYTHON MEDIA ORGANIZER")
+        product_label.setObjectName("eyebrow")
+        header.addWidget(product_label)
         header.addStretch(1)
         self.open_csv_button = QPushButton("Open CSV")
         self.open_csv_button.setObjectName("ghostButton")
@@ -719,7 +722,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 max-width: 44px;
                 max-height: 44px;
                 border-radius: 8px;
-                background: #172026;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2f80ed, stop:1 #1f9d68);
                 color: #ffffff;
                 font-weight: 900;
             }
@@ -740,10 +743,16 @@ class PhotoOrganizerWindow(QMainWindow):
                 background: transparent;
                 color: #65717a;
             }
-            #navActive, #primaryButton {
+            #navActive {
                 text-align: left;
-                border: 1px solid #172026;
-                background: #172026;
+                border: 1px solid #2185d0;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2f80ed, stop:1 #1f9d68);
+                color: #ffffff;
+            }
+            #primaryButton {
+                text-align: center;
+                border: 1px solid #2185d0;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2f80ed, stop:1 #1f9d68);
                 color: #ffffff;
             }
             #ghostButton {
