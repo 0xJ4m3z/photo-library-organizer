@@ -98,6 +98,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self._update_sample_count()
         self._update_folder_labels()
         self._update_command_preview()
+        self._show_source_path_start()
 
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
@@ -179,7 +180,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addLayout(header)
 
         top_row = QHBoxLayout()
-        top_row.setSpacing(18)
+        top_row.setSpacing(14)
 
         folder_card = QFrame()
         folder_card.setObjectName("panel")
@@ -196,6 +197,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.root_path.textChanged.connect(lambda _text: self._sync_source_tooltip())
         browse = QPushButton("Browse")
         browse.setObjectName("ghostButton")
+        browse.setFixedWidth(108)
         browse.clicked.connect(self.choose_root)
         folder_layout.setColumnStretch(0, 1)
         folder_layout.addWidget(self.root_path, 1, 0)
@@ -226,7 +228,7 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.addWidget(self.status_label, 5, 0, 1, 2)
         folder_layout.addWidget(self.progress, 6, 0, 1, 2)
         folder_layout.addWidget(self.stats_label, 7, 0, 1, 2)
-        top_row.addWidget(folder_card, 3)
+        top_row.addWidget(folder_card, 5)
 
         preview_card = QFrame()
         preview_card.setObjectName("panel")
@@ -238,7 +240,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview = QLabel("Waiting for run")
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setMinimumSize(260, 150)
+        self.preview.setMinimumSize(220, 150)
         self.preview.setMaximumHeight(170)
         self.current_file_label = QLabel("No file yet.")
         self.current_file_label.setObjectName("muted")
@@ -358,6 +360,7 @@ class PhotoOrganizerWindow(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Choose media root", str(self._root_from_field()))
         if folder:
             self.root_path.setText(folder)
+            self._show_source_path_start()
             self._update_sample_count()
             self._update_folder_labels()
 
@@ -367,6 +370,7 @@ class PhotoOrganizerWindow(QMainWindow):
             return
         self._ensure_sample_library(force=True)
         self.root_path.setText(SAMPLE_DISPLAY)
+        self._show_source_path_start()
         self.latest_csv_path = None
         self.dest_root = None
         self.open_csv_button.setEnabled(False)
@@ -479,6 +483,12 @@ class PhotoOrganizerWindow(QMainWindow):
         if not hasattr(self, "root_path"):
             return
         self.root_path.setToolTip(str(self._root_from_field()))
+
+    def _show_source_path_start(self) -> None:
+        if not hasattr(self, "root_path"):
+            return
+        self.root_path.setCursorPosition(0)
+        self.root_path.deselect()
 
     def _update_run_label(self) -> None:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
