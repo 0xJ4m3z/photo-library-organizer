@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices, QFont, QPixmap
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -45,6 +45,7 @@ PROGRESS_RE = re.compile(
     re.IGNORECASE,
 )
 ACTION_RE = re.compile(r"^(?:\[DRY\])?\[([^\]]+)\]\s+(.+?)(?:\s+->\s+(.+))?$")
+ACTION_NAMES = {"MOVE", "MOVE+RENAME", "DUP-MOVE", "DUP_MOVE", "DUP-SKIP", "DUP-DEL", "DUP_DELETE", "SKIP"}
 
 
 def make_item(value: str, align_center: bool = False) -> QTableWidgetItem:
@@ -495,6 +496,8 @@ class PhotoOrganizerWindow(QMainWindow):
             if not match:
                 continue
             action, source, destination = match.group(1), match.group(2), match.group(3) or ""
+            if action not in ACTION_NAMES:
+                continue
             source_path = Path(source)
             destination_path = Path(destination) if destination else None
             preview_path = self._resolve_preview_path(source_path, destination_path)
@@ -516,7 +519,18 @@ class PhotoOrganizerWindow(QMainWindow):
             self.preview.setPixmap(QPixmap())
             self.preview.setText(path.name)
             return
-        pixmap = QPixmap(str(path))
+        try:
+            image_bytes = path.read_bytes()
+        except OSError:
+            self.preview.setPixmap(QPixmap())
+            self.preview.setText(path.name)
+            return
+        image = QImage()
+        if not image.loadFromData(image_bytes):
+            self.preview.setPixmap(QPixmap())
+            self.preview.setText(path.name)
+            return
+        pixmap = QPixmap.fromImage(image)
         if pixmap.isNull():
             self.preview.setPixmap(QPixmap())
             self.preview.setText(path.name)
