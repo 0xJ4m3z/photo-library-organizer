@@ -20,6 +20,7 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
     QPolygonF,
+    QRadialGradient,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -93,10 +94,6 @@ NAV_TEXT_MUTED = "#a6b0c0"
 NAV_ICON_MUTED = "#8793a5"
 NAV_GLOW_COLOR = "#ec4899"
 SAMPLE_BORDER_SOFT = "rgba(247, 37, 217, 0.35)"
-HERO_GLOW_CSS = (
-    "qradialgradient(cx:0.2, cy:0.15, radius:1.05, fx:0.2, fy:0.15,"
-    " stop:0 rgba(236, 72, 153, 60), stop:0.45 rgba(139, 92, 246, 32), stop:1 rgba(11, 17, 28, 0))"
-)
 
 
 def make_item(value: str, align_center: bool = False, color: str = TEXT_PRIMARY) -> QTableWidgetItem:
@@ -288,6 +285,52 @@ def checkmark_asset_path() -> str:
     tmp_path = Path(tempfile.gettempdir()) / "photo_organizer_checkmark.png"
     pixmap.save(str(tmp_path), "PNG")
     return str(tmp_path).replace("\\", "/")
+
+
+class HeroGlowWidget(QWidget):
+    """Soft atmospheric pink/purple/orange glow painted behind the Run page.
+
+    Sized to the whole page (not just the header/stat row) so every gradient
+    has room to fade fully to transparent before it reaches an edge - a QSS
+    background on a tightly-sized widget reads as a hard rectangle, this
+    doesn't.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        w = max(self.width(), 1)
+        h = max(self.height(), 1)
+        span = max(w, h)
+
+        glows = [
+            (w * 0.20, h * 0.02, span * 0.60, QColor(236, 72, 153, 50)),
+            (w * 0.42, h * -0.06, span * 0.46, QColor(139, 92, 246, 42)),
+            (w * 0.58, h * 0.10, span * 0.28, QColor(255, 107, 53, 32)),
+        ]
+        for cx, cy, radius, inner in glows:
+            gradient = QRadialGradient(cx, cy, radius)
+            gradient.setColorAt(0.0, inner)
+            outer = QColor(inner)
+            outer.setAlpha(0)
+            gradient.setColorAt(1.0, outer)
+            painter.setBrush(QBrush(gradient))
+            painter.drawRect(self.rect())
+
+        sparkles = [
+            (0.10, 0.03, 2.0, 120), (0.24, 0.08, 1.4, 85), (0.34, 0.02, 1.7, 105),
+            (0.46, 0.10, 1.3, 75), (0.15, 0.14, 1.2, 65), (0.52, 0.03, 1.6, 90),
+        ]
+        for fx, fy, radius, alpha in sparkles:
+            painter.setBrush(QColor(255, 255, 255, alpha))
+            painter.drawEllipse(QPointF(w * fx, h * fy), radius, radius)
+        painter.end()
 
 
 class NavItem(QFrame):
@@ -564,8 +607,9 @@ class PhotoOrganizerWindow(QMainWindow):
         return label
 
     def _build_run_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
+        content = QWidget()
+        content.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(22, 14, 22, 10)
         layout.setSpacing(10)
 
@@ -578,6 +622,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.run_button.setIconSize(QSize(14, 14))
         self.run_button.clicked.connect(self.run_organizer)
         header.addWidget(self.run_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        layout.addLayout(header)
 
         stats_row = QHBoxLayout()
         stats_row.setSpacing(14)
@@ -587,26 +632,7 @@ class PhotoOrganizerWindow(QMainWindow):
         report_card, self.stat_report_label = self._make_stat_card("report", ACCENT_GREEN, "Report Ready", "CSV report generated")
         for card in (found_card, renamed_card, dups_card, report_card):
             stats_row.addWidget(card, 1)
-
-        # Decorative glow sits behind the header + stat row via a shared grid cell.
-        hero_content = QWidget()
-        hero_content_layout = QVBoxLayout(hero_content)
-        hero_content_layout.setContentsMargins(0, 0, 0, 0)
-        hero_content_layout.setSpacing(10)
-        hero_content_layout.addLayout(header)
-        hero_content_layout.addLayout(stats_row)
-
-        hero_glow = QLabel()
-        hero_glow.setObjectName("heroGlow")
-        hero_glow.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-
-        hero_container = QWidget()
-        hero_grid = QGridLayout(hero_container)
-        hero_grid.setContentsMargins(0, 0, 0, 0)
-        hero_grid.addWidget(hero_glow, 0, 0)
-        hero_grid.addWidget(hero_content, 0, 0)
-        hero_glow.lower()
-        layout.addWidget(hero_container)
+        layout.addLayout(stats_row)
 
         top_row = QHBoxLayout()
         top_row.setSpacing(14)
@@ -761,6 +787,15 @@ class PhotoOrganizerWindow(QMainWindow):
         actions_layout.addWidget(self.results_status)
         layout.addWidget(actions_card, 1)
 
+        # Full-page decorative glow behind everything, so its gradients have
+        # room to fade to nothing before hitting an edge (see HeroGlowWidget).
+        glow = HeroGlowWidget()
+        page = QWidget()
+        page_grid = QGridLayout(page)
+        page_grid.setContentsMargins(0, 0, 0, 0)
+        page_grid.addWidget(glow, 0, 0)
+        page_grid.addWidget(content, 0, 0)
+        glow.lower()
         return page
 
     # ------------------------------------------------------------------
@@ -1616,10 +1651,6 @@ class PhotoOrganizerWindow(QMainWindow):
             }}
             #pages {{
                 background: {BG};
-            }}
-            #heroGlow {{
-                background: {HERO_GLOW_CSS};
-                border: 0;
             }}
             #scrollArea, #scrollArea > QWidget > QWidget {{
                 background: transparent;
