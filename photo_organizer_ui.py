@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt, QUrl, Signal
+from PySide6.QtCore import QPointF, QProcess, QRectF, Qt, QUrl, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -15,7 +15,9 @@ from PySide6.QtGui import (
     QImage,
     QPainter,
     QPainterPath,
+    QPen,
     QPixmap,
+    QPolygonF,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -137,23 +139,93 @@ def rounded_pixmap(pixmap: QPixmap, radius: int) -> QPixmap:
     return result
 
 
+def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
+    """Paint a small line-style icon so sidebar glyphs never depend on font/emoji fallback."""
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor(color))
+    pen.setWidthF(max(1.4, size * 0.09))
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+
+    m = size * 0.18
+    w = size - 2 * m
+
+    if kind == "run":
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        triangle = QPolygonF(
+            [
+                QPointF(m + w * 0.12, m * 0.6),
+                QPointF(m + w * 0.12, size - m * 0.6),
+                QPointF(size - m * 0.4, size / 2),
+            ]
+        )
+        painter.drawPolygon(triangle)
+    elif kind == "output":
+        path = QPainterPath()
+        tab_w = w * 0.45
+        tab_h = w * 0.18
+        path.moveTo(m, m + tab_h)
+        path.lineTo(m + tab_w, m + tab_h)
+        path.lineTo(m + tab_w + tab_h, m)
+        path.lineTo(size - m, m)
+        path.lineTo(size - m, size - m)
+        path.lineTo(m, size - m)
+        path.closeSubpath()
+        painter.drawPath(path)
+    elif kind == "report":
+        painter.drawRoundedRect(QRectF(m, m, w, size - 2 * m), 2.5, 2.5)
+        inner_left = m + w * 0.22
+        inner_right = size - m - w * 0.22
+        for fraction in (0.38, 0.58, 0.78):
+            y = m + (size - 2 * m) * fraction
+            painter.drawLine(QPointF(inner_left, y), QPointF(inner_right, y))
+    elif kind == "settings":
+        center = QPointF(size / 2, size / 2)
+        radius = w * 0.28
+        painter.drawEllipse(center, radius, radius)
+        tooth_len = w * 0.16
+        for i in range(8):
+            painter.save()
+            painter.translate(center)
+            painter.rotate(i * 45)
+            painter.drawLine(QPointF(0, -radius - 1), QPointF(0, -radius - 1 - tooth_len))
+            painter.restore()
+    elif kind == "sample":
+        band_h = (size - 2 * m - 4) / 3
+        y = m
+        for _ in range(3):
+            painter.drawRoundedRect(QRectF(m, y, w, band_h), 1.5, 1.5)
+            y += band_h + 2
+
+    painter.end()
+    return pixmap
+
+
 class NavItem(QFrame):
-    """Clickable sidebar row: left icon, label, and a chevron shown only when active."""
+    """Clickable sidebar row: painted left icon, label, and a chevron shown only when active."""
 
     clicked = Signal()
+    ICON_SIZE = 19
 
-    def __init__(self, icon: str, label: str) -> None:
+    def __init__(self, kind: str, label: str) -> None:
         super().__init__()
+        self.kind = kind
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(14, 0, 14, 0)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 0, 12, 0)
+        layout.setSpacing(11)
 
-        self.icon_label = QLabel(icon)
+        self.icon_label = QLabel()
         self.icon_label.setObjectName("navIcon")
-        self.icon_label.setFixedWidth(20)
+        self.icon_label.setFixedSize(24, 24)
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.text_label = QLabel(label)
@@ -161,7 +233,7 @@ class NavItem(QFrame):
 
         self.chevron_label = QLabel("")
         self.chevron_label.setObjectName("navChevron")
-        self.chevron_label.setFixedWidth(16)
+        self.chevron_label.setFixedWidth(14)
         self.chevron_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addWidget(self.icon_label)
@@ -177,8 +249,10 @@ class NavItem(QFrame):
 
     def set_active(self, active: bool) -> None:
         self.setObjectName("navItemActive" if active else "navItemInactive")
-        self.setFixedHeight(56 if active else 50)
+        self.setFixedHeight(52 if active else 46)
         self.chevron_label.setText("›" if active else "")
+        icon_color = "#ffffff" if active else TEXT_MUTED
+        self.icon_label.setPixmap(draw_nav_icon(self.kind, icon_color, self.ICON_SIZE))
         for widget in (self, self.icon_label, self.text_label, self.chevron_label):
             widget.style().unpolish(widget)
             widget.style().polish(widget)
@@ -221,47 +295,48 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(248)
+        sidebar.setFixedWidth(216)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(20, 22, 20, 20)
+        layout.setContentsMargins(16, 20, 16, 20)
         layout.setSpacing(0)
 
         brand_row = QHBoxLayout()
-        brand_row.setSpacing(12)
+        brand_row.setSpacing(9)
         mark = QLabel("PL")
         mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mark.setObjectName("brandMark")
         title = QLabel("Photo Library\nOrganizer")
         title.setObjectName("brandTitle")
         brand_row.addWidget(mark)
-        brand_row.addWidget(title, 1)
+        brand_row.addWidget(title, 1, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(brand_row)
-        layout.addSpacing(28)
+        layout.addSpacing(24)
 
         self.nav_buttons: list[NavItem] = []
-        nav_specs = [("▶", "Run"), ("▦", "Output"), ("▤", "Report"), ("⚙", "Settings")]
-        for idx, (icon, label) in enumerate(nav_specs):
-            item = NavItem(icon, label)
+        nav_specs = [("run", "Run"), ("output", "Output"), ("report", "Report"), ("settings", "Settings")]
+        for idx, (kind, label) in enumerate(nav_specs):
+            item = NavItem(kind, label)
             item.clicked.connect(lambda page=idx: self._select_page(page))
             self.nav_buttons.append(item)
             layout.addWidget(item)
-            layout.addSpacing(14 if idx == 0 else 4)
+            layout.addSpacing(12 if idx == 0 else 3)
 
         layout.addStretch(1)
 
         sample_box = QFrame()
         sample_box.setObjectName("sideCard")
         sample_layout = QVBoxLayout(sample_box)
-        sample_layout.setContentsMargins(14, 14, 14, 14)
-        sample_layout.setSpacing(10)
+        sample_layout.setContentsMargins(12, 12, 12, 12)
+        sample_layout.setSpacing(8)
 
         sample_header = QHBoxLayout()
-        sample_header.setSpacing(10)
-        sample_icon = QLabel("▥")
+        sample_header.setSpacing(9)
+        sample_icon = QLabel()
         sample_icon.setObjectName("sampleIcon")
-        sample_icon.setFixedSize(28, 28)
+        sample_icon.setFixedSize(24, 24)
         sample_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sample_icon.setPixmap(draw_nav_icon("sample", "#ffffff", 14))
         self.sample_count = QLabel("Sample files: —")
         self.sample_count.setObjectName("sideLabel")
         sample_header.addWidget(sample_icon)
@@ -1379,11 +1454,12 @@ class PhotoOrganizerWindow(QMainWindow):
             }}
             #brandTitle {{
                 color: {TEXT_PRIMARY};
-                font-size: 18px;
-                font-weight: 900;
+                font-size: 13px;
+                font-weight: 800;
+                line-height: 110%;
             }}
             #navItemActive, #navItemInactive {{
-                border-radius: 14px;
+                border-radius: 12px;
                 border: 0;
             }}
             #navItemInactive {{
@@ -1406,11 +1482,8 @@ class PhotoOrganizerWindow(QMainWindow):
             #navItemActive #navIcon, #navItemActive #navText, #navItemActive #navChevron {{
                 color: #ffffff;
             }}
-            #navIcon {{
-                font-size: 15px;
-            }}
             #navText {{
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 700;
             }}
             #navItemActive #navText {{
@@ -1467,10 +1540,7 @@ class PhotoOrganizerWindow(QMainWindow):
             }}
             #sampleIcon {{
                 background: {ACCENT_PINK};
-                color: #ffffff;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 800;
+                border-radius: 7px;
             }}
             #resetSampleButton {{
                 min-height: 36px;
