@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
+    QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
@@ -81,11 +82,15 @@ GRADIENT_CSS = "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #d946ef, stop:0.5
 
 # Sidebar-specific palette (kept separate so sidebar polish never touches dashboard styling).
 SIDEBAR_GRADIENT_CSS = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #08111f, stop:1 #050b14)"
-SIDEBAR_BORDER = "#1f2937"
+SIDEBAR_BORDER = "rgba(31, 41, 55, 0.7)"
 NAV_ACTIVE_GRADIENT_CSS = (
     "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c026d3, stop:0.55 #ec4899, stop:1 #ff6b35)"
 )
 LOGO_GRADIENT_CSS = f"qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {ACCENT_PINK}, stop:1 {ACCENT_ORANGE})"
+NAV_TEXT_MUTED = "#a6b0c0"
+NAV_ICON_MUTED = "#8793a5"
+NAV_GLOW_COLOR = "#ec4899"
+SAMPLE_BORDER_SOFT = "rgba(247, 37, 217, 0.35)"
 
 
 def make_item(value: str, align_center: bool = False, color: str = TEXT_PRIMARY) -> QTableWidgetItem:
@@ -249,10 +254,18 @@ class NavItem(QFrame):
 
     def set_active(self, active: bool) -> None:
         self.setObjectName("navItemActive" if active else "navItemInactive")
-        self.setFixedHeight(52 if active else 46)
+        self.setFixedHeight(50 if active else 44)
         self.chevron_label.setText("›" if active else "")
-        icon_color = "#ffffff" if active else TEXT_MUTED
+        icon_color = "#ffffff" if active else NAV_ICON_MUTED
         self.icon_label.setPixmap(draw_nav_icon(self.kind, icon_color, self.ICON_SIZE))
+        if active:
+            glow = QGraphicsDropShadowEffect(self)
+            glow.setColor(QColor(NAV_GLOW_COLOR))
+            glow.setBlurRadius(28)
+            glow.setOffset(0, 0)
+            self.setGraphicsEffect(glow)
+        else:
+            self.setGraphicsEffect(None)
         for widget in (self, self.icon_label, self.text_label, self.chevron_label):
             widget.style().unpolish(widget)
             widget.style().polish(widget)
@@ -295,14 +308,14 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(216)
+        sidebar.setFixedWidth(208)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(16, 20, 16, 20)
+        layout.setContentsMargins(14, 18, 14, 18)
         layout.setSpacing(0)
 
         brand_row = QHBoxLayout()
-        brand_row.setSpacing(9)
+        brand_row.setSpacing(7)
         mark = QLabel("PL")
         mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mark.setObjectName("brandMark")
@@ -311,7 +324,7 @@ class PhotoOrganizerWindow(QMainWindow):
         brand_row.addWidget(mark)
         brand_row.addWidget(title, 1, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(brand_row)
-        layout.addSpacing(24)
+        layout.addSpacing(20)
 
         self.nav_buttons: list[NavItem] = []
         nav_specs = [("run", "Run"), ("output", "Output"), ("report", "Report"), ("settings", "Settings")]
@@ -327,8 +340,8 @@ class PhotoOrganizerWindow(QMainWindow):
         sample_box = QFrame()
         sample_box.setObjectName("sideCard")
         sample_layout = QVBoxLayout(sample_box)
-        sample_layout.setContentsMargins(12, 12, 12, 12)
-        sample_layout.setSpacing(8)
+        sample_layout.setContentsMargins(11, 11, 11, 11)
+        sample_layout.setSpacing(7)
 
         sample_header = QHBoxLayout()
         sample_header.setSpacing(9)
@@ -1442,21 +1455,21 @@ class PhotoOrganizerWindow(QMainWindow):
                 border: 0;
             }}
             #brandMark {{
-                min-width: 44px;
-                min-height: 44px;
-                max-width: 44px;
-                max-height: 44px;
-                border-radius: 11px;
+                min-width: 41px;
+                min-height: 41px;
+                max-width: 41px;
+                max-height: 41px;
+                border-radius: 10px;
                 background: {LOGO_GRADIENT_CSS};
                 color: #ffffff;
-                font-size: 15px;
+                font-size: 14px;
                 font-weight: 900;
             }}
             #brandTitle {{
                 color: {TEXT_PRIMARY};
-                font-size: 13px;
-                font-weight: 800;
-                line-height: 110%;
+                font-size: 12px;
+                font-weight: 700;
+                line-height: 105%;
             }}
             #navItemActive, #navItemInactive {{
                 border-radius: 12px;
@@ -1470,16 +1483,16 @@ class PhotoOrganizerWindow(QMainWindow):
             }}
             #navItemActive {{
                 background: {NAV_ACTIVE_GRADIENT_CSS};
-                border: 1px solid rgba(255, 255, 255, 0.16);
+                border: 1px solid rgba(255, 255, 255, 0.10);
             }}
-            #navItemInactive #navIcon, #navItemInactive #navText {{
-                color: {TEXT_MUTED};
+            #navItemInactive #navText {{
+                color: {NAV_TEXT_MUTED};
                 font-weight: 600;
             }}
-            #navItemInactive:hover #navIcon, #navItemInactive:hover #navText {{
+            #navItemInactive:hover #navText {{
                 color: {TEXT_PRIMARY};
             }}
-            #navItemActive #navIcon, #navItemActive #navText, #navItemActive #navChevron {{
+            #navItemActive #navText, #navItemActive #navChevron {{
                 color: #ffffff;
             }}
             #navText {{
@@ -1490,7 +1503,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 font-weight: 800;
             }}
             #navChevron {{
-                font-size: 16px;
+                font-size: 15px;
                 font-weight: 800;
             }}
             #primaryButton {{
@@ -1534,8 +1547,8 @@ class PhotoOrganizerWindow(QMainWindow):
                 border: 1px solid {SIDEBAR_BORDER};
             }}
             #sideLabel {{
-                color: {TEXT_PRIMARY};
-                font-weight: 800;
+                color: {NAV_TEXT_MUTED};
+                font-weight: 700;
                 font-size: 12px;
             }}
             #sampleIcon {{
@@ -1543,17 +1556,17 @@ class PhotoOrganizerWindow(QMainWindow):
                 border-radius: 7px;
             }}
             #resetSampleButton {{
-                min-height: 36px;
+                min-height: 34px;
                 border-radius: 9px;
-                font-weight: 700;
+                font-weight: 600;
                 font-size: 12px;
-                border: 1px solid {ACCENT_PINK};
+                border: 1px solid {SAMPLE_BORDER_SOFT};
                 background: {BG};
-                color: {TEXT_PRIMARY};
+                color: {NAV_TEXT_MUTED};
             }}
             #resetSampleButton:hover {{
                 border: 1px solid {ACCENT_ORANGE};
-                color: {ACCENT_ORANGE};
+                color: {TEXT_PRIMARY};
             }}
             #sectionTitle {{
                 color: {TEXT_PRIMARY};
