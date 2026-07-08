@@ -501,12 +501,16 @@ class PhotoOrganizerWindow(QMainWindow):
         table.setObjectName("resultsTable")
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        table.horizontalHeader().setFixedHeight(38)
         table.verticalHeader().setVisible(False)
+        table.setShowGrid(False)
         table.setAlternatingRowColors(True)
         table.verticalHeader().setDefaultSectionSize(32)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         return table
 
     def _scroll_wrap(self, inner: QWidget) -> QWidget:
@@ -1426,6 +1430,8 @@ class PhotoOrganizerWindow(QMainWindow):
             for col_idx, value in enumerate(row):
                 color = ACCENT_PINK if col_idx == 0 else TEXT_PRIMARY
                 table.setItem(row_idx, col_idx, make_item(value, align_center=col_idx == 0, color=color))
+        table.scrollToTop()
+        table.verticalScrollBar().setValue(0)
 
     def _load_csv_results(self) -> None:
         if not self.latest_csv_path or not self.latest_csv_path.exists():
