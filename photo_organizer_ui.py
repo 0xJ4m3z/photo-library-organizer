@@ -8,7 +8,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QUrl, Signal
+from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -333,6 +333,45 @@ class HeroGlowWidget(QWidget):
         painter.end()
 
 
+class ImagePreviewLabel(QLabel):
+    """QLabel that keeps its source pixmap and re-scales on every resize.
+
+    A one-shot scale-at-set-time approach breaks if the label's size isn't
+    final yet when the image is first shown (e.g. populated before the
+    window has been through its first show/layout pass) - the pixmap just
+    sits at whatever wrong size it was scaled to. Re-deriving the scaled,
+    rounded pixmap from the stored source on every resizeEvent makes the
+    displayed image correct regardless of when or how the label got its
+    current size.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._source_pixmap: QPixmap | None = None
+
+    def set_source_pixmap(self, pixmap: QPixmap) -> None:
+        self._source_pixmap = pixmap
+        self._apply_scaled_pixmap()
+
+    def show_placeholder(self, pixmap: QPixmap) -> None:
+        self._source_pixmap = None
+        self.setPixmap(pixmap)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._apply_scaled_pixmap()
+
+    def _apply_scaled_pixmap(self) -> None:
+        if self._source_pixmap is None or self._source_pixmap.isNull():
+            return
+        scaled = self._source_pixmap.scaled(
+            self.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self.setPixmap(rounded_pixmap(scaled, 10))
+
+
 class NavItem(QFrame):
     """Clickable sidebar row: painted left icon, label, and a chevron shown only when active."""
 
@@ -422,7 +461,11 @@ class PhotoOrganizerWindow(QMainWindow):
         self._reset_stat_cards()
         self._refresh_output_tab()
         self._refresh_report_tab()
-        self._show_default_sample_preview()
+        # Deferred: at construction time the preview label hasn't been through a
+        # real layout pass yet (window isn't shown), so its reported size is
+        # stale and scaling against it now would produce a wrongly-proportioned
+        # image. Run once the event loop is idle, after the first show/layout.
+        QTimer.singleShot(0, self._show_default_sample_preview)
 
     # ------------------------------------------------------------------
     # Sidebar / navigation
@@ -736,7 +779,7 @@ class PhotoOrganizerWindow(QMainWindow):
         preview_layout.addWidget(preview_title)
         preview_layout.addSpacing(10)
 
-        self.preview = QLabel()
+        self.preview = ImagePreviewLabel()
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setMinimumHeight(150)
@@ -1368,7 +1411,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
     def _set_preview_placeholder(self) -> None:
         icon = draw_nav_icon("found", TEXT_MUTED, 40)
-        self.preview.setPixmap(icon)
+        self.preview.show_placeholder(icon)
 
     def _set_preview_empty(self) -> None:
         self._set_preview_placeholder()
@@ -1417,16 +1460,7 @@ class PhotoOrganizerWindow(QMainWindow):
         if pixmap.isNull():
             self._set_preview_placeholder()
             return
-        self.preview.setPixmap(
-            rounded_pixmap(
-                pixmap.scaled(
-                    self.preview.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                ),
-                10,
-            )
-        )
+        self.preview.set_source_pixmap(pixmap)
 
     def _show_default_sample_preview(self) -> None:
         if not SAMPLE_SOURCE.exists():
