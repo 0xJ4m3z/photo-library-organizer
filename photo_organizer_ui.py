@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -92,6 +93,10 @@ NAV_TEXT_MUTED = "#a6b0c0"
 NAV_ICON_MUTED = "#8793a5"
 NAV_GLOW_COLOR = "#ec4899"
 SAMPLE_BORDER_SOFT = "rgba(247, 37, 217, 0.35)"
+HERO_GLOW_CSS = (
+    "qradialgradient(cx:0.2, cy:0.15, radius:1.05, fx:0.2, fy:0.15,"
+    " stop:0 rgba(236, 72, 153, 60), stop:0.45 rgba(139, 92, 246, 32), stop:1 rgba(11, 17, 28, 0))"
+)
 
 
 def make_item(value: str, align_center: bool = False, color: str = TEXT_PRIMARY) -> QTableWidgetItem:
@@ -255,6 +260,34 @@ def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
 
     painter.end()
     return pixmap
+
+
+def checkmark_asset_path() -> str:
+    """Render a white checkmark to a temp PNG for use as a QCheckBox::indicator image.
+
+    Qt Style Sheets can't reference an in-memory QPixmap directly, so the
+    checkmark is drawn once and saved to disk; QSS url() accepts a plain
+    filesystem path as long as it uses forward slashes.
+    """
+    pixmap = QPixmap(20, 20)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor("#ffffff"))
+    pen.setWidthF(2.6)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    painter.setPen(pen)
+    path = QPainterPath()
+    path.moveTo(4.5, 10.5)
+    path.lineTo(8.3, 14.5)
+    path.lineTo(15.5, 5.5)
+    painter.drawPath(path)
+    painter.end()
+
+    tmp_path = Path(tempfile.gettempdir()) / "photo_organizer_checkmark.png"
+    pixmap.save(str(tmp_path), "PNG")
+    return str(tmp_path).replace("\\", "/")
 
 
 class NavItem(QFrame):
@@ -431,15 +464,16 @@ class PhotoOrganizerWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Shared builder helpers
     # ------------------------------------------------------------------
-    def _page_header(self, title: str, subtitle: str) -> QVBoxLayout:
+    def _page_header(self, title: str, subtitle: str = "") -> QVBoxLayout:
         column = QVBoxLayout()
         column.setSpacing(4)
         title_label = QLabel(title)
         title_label.setObjectName("pageHeaderTitle")
-        subtitle_label = QLabel(subtitle)
-        subtitle_label.setObjectName("pageSubtitle")
         column.addWidget(title_label)
-        column.addWidget(subtitle_label)
+        if subtitle:
+            subtitle_label = QLabel(subtitle)
+            subtitle_label.setObjectName("pageSubtitle")
+            column.addWidget(subtitle_label)
         return column
 
     def _make_panel(self) -> QFrame:
@@ -536,7 +570,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.setSpacing(10)
 
         header = QHBoxLayout()
-        header.addLayout(self._page_header("Organize, rename, and sort your photos", "Consolidate, rename, and de-duplicate your media library."))
+        header.addLayout(self._page_header("Organize, rename, and sort your photos"))
         header.addStretch(1)
         self.run_button = QPushButton("Run Organizer")
         self.run_button.setObjectName("primaryButton")
@@ -544,7 +578,6 @@ class PhotoOrganizerWindow(QMainWindow):
         self.run_button.setIconSize(QSize(14, 14))
         self.run_button.clicked.connect(self.run_organizer)
         header.addWidget(self.run_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        layout.addLayout(header)
 
         stats_row = QHBoxLayout()
         stats_row.setSpacing(14)
@@ -554,7 +587,26 @@ class PhotoOrganizerWindow(QMainWindow):
         report_card, self.stat_report_label = self._make_stat_card("report", ACCENT_GREEN, "Report Ready", "CSV report generated")
         for card in (found_card, renamed_card, dups_card, report_card):
             stats_row.addWidget(card, 1)
-        layout.addLayout(stats_row)
+
+        # Decorative glow sits behind the header + stat row via a shared grid cell.
+        hero_content = QWidget()
+        hero_content_layout = QVBoxLayout(hero_content)
+        hero_content_layout.setContentsMargins(0, 0, 0, 0)
+        hero_content_layout.setSpacing(10)
+        hero_content_layout.addLayout(header)
+        hero_content_layout.addLayout(stats_row)
+
+        hero_glow = QLabel()
+        hero_glow.setObjectName("heroGlow")
+        hero_glow.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        hero_container = QWidget()
+        hero_grid = QGridLayout(hero_container)
+        hero_grid.setContentsMargins(0, 0, 0, 0)
+        hero_grid.addWidget(hero_glow, 0, 0)
+        hero_grid.addWidget(hero_content, 0, 0)
+        hero_glow.lower()
+        layout.addWidget(hero_container)
 
         top_row = QHBoxLayout()
         top_row.setSpacing(14)
@@ -626,10 +678,6 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.addWidget(self.status_label)
         folder_layout.addSpacing(8)
 
-        completion_label = QLabel("Completion")
-        completion_label.setObjectName("captionMuted")
-        folder_layout.addWidget(completion_label)
-        folder_layout.addSpacing(4)
         progress_row = QHBoxLayout()
         progress_row.setSpacing(10)
         self.progress = QProgressBar()
@@ -665,9 +713,9 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview = QLabel()
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setFixedHeight(128)
-        self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        preview_layout.addWidget(self.preview)
+        self.preview.setMinimumHeight(150)
+        self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        preview_layout.addWidget(self.preview, 1)
         preview_layout.addSpacing(10)
 
         self.preview_heading = QLabel("Waiting for preview")
@@ -678,10 +726,10 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview_hint.setObjectName("captionMuted")
         self.preview_hint.setWordWrap(True)
         preview_layout.addWidget(self.preview_hint)
-        preview_layout.addSpacing(10)
+        preview_layout.addSpacing(12)
 
         meta_column = QVBoxLayout()
-        meta_column.setSpacing(8)
+        meta_column.setSpacing(10)
         name_row, self.meta_name_label = self._make_meta_row(ACCENT_PINK, "File", "—")
         size_row, self.meta_size_label = self._make_meta_row(ACCENT_PURPLE, "Size", "—")
         date_row, self.meta_date_label = self._make_meta_row(ACCENT_ORANGE, "Date", "—")
@@ -689,7 +737,6 @@ class PhotoOrganizerWindow(QMainWindow):
         for row in (name_row, size_row, date_row, dims_row):
             meta_column.addWidget(row)
         preview_layout.addLayout(meta_column)
-        preview_layout.addStretch(1)
         top_row.addWidget(preview_card, 2)
         layout.addLayout(top_row)
 
@@ -1553,6 +1600,7 @@ class PhotoOrganizerWindow(QMainWindow):
     # Styling
     # ------------------------------------------------------------------
     def _apply_styles(self) -> None:
+        checkmark_path = checkmark_asset_path()
         self.setStyleSheet(
             f"""
             QMainWindow {{
@@ -1568,6 +1616,10 @@ class PhotoOrganizerWindow(QMainWindow):
             }}
             #pages {{
                 background: {BG};
+            }}
+            #heroGlow {{
+                background: {HERO_GLOW_CSS};
+                border: 0;
             }}
             #scrollArea, #scrollArea > QWidget > QWidget {{
                 background: transparent;
@@ -1809,19 +1861,27 @@ class PhotoOrganizerWindow(QMainWindow):
                 spacing: 8px;
             }}
             QCheckBox::indicator {{
-                width: 17px;
-                height: 17px;
+                width: 18px;
+                height: 18px;
                 border-radius: 5px;
-                border: 1px solid {BORDER_SOFT};
+                border: 2px solid {BORDER_SOFT};
                 background: {CARD_ALT};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {ACCENT_PURPLE};
             }}
             QCheckBox::indicator:checked {{
                 background: {ACCENT_PURPLE};
-                border: 1px solid {ACCENT_PURPLE};
+                border: 2px solid {ACCENT_PURPLE};
+                image: url({checkmark_path});
+            }}
+            #accentCheck::indicator:hover {{
+                border: 2px solid {ACCENT_PINK};
             }}
             #accentCheck::indicator:checked {{
                 background: {ACCENT_PINK};
-                border: 1px solid {ACCENT_PINK};
+                border: 2px solid {ACCENT_PINK};
+                image: url({checkmark_path});
             }}
             QProgressBar {{
                 min-height: 12px;
