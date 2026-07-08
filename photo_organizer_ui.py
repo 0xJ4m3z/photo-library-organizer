@@ -7,11 +7,12 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QProcess, QRectF, Qt, QUrl, Signal
+from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
     QDesktopServices,
+    QIcon,
     QImage,
     QPainter,
     QPainterPath,
@@ -207,6 +208,50 @@ def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
         for _ in range(3):
             painter.drawRoundedRect(QRectF(m, y, w, band_h), 1.5, 1.5)
             y += band_h + 2
+    elif kind == "found":
+        painter.drawRoundedRect(QRectF(m, m, w, size - 2 * m), 2.5, 2.5)
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QPointF(m + w * 0.28, m + w * 0.28), w * 0.11, w * 0.11)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        mountain = QPolygonF(
+            [
+                QPointF(m + w * 0.08, size - m - w * 0.1),
+                QPointF(m + w * 0.36, size - m - w * 0.42),
+                QPointF(m + w * 0.56, size - m - w * 0.22),
+                QPointF(m + w * 0.76, size - m - w * 0.5),
+                QPointF(size - m - w * 0.08, size - m - w * 0.1),
+            ]
+        )
+        painter.drawPolyline(mountain)
+    elif kind == "renamed":
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.save()
+        painter.translate(size / 2, size / 2)
+        painter.rotate(-45)
+        body_len = w * 0.7
+        body_w = w * 0.2
+        painter.drawRoundedRect(QRectF(-body_len / 2, -body_w / 2, body_len * 0.7, body_w), 1.5, 1.5)
+        tip = QPolygonF(
+            [
+                QPointF(body_len * 0.2, -body_w / 2),
+                QPointF(body_len * 0.2, body_w / 2),
+                QPointF(body_len / 2, 0),
+            ]
+        )
+        painter.drawPolygon(tip)
+        painter.restore()
+    elif kind == "duplicates":
+        back = w * 0.66
+        offset = w * 0.2
+        painter.drawRoundedRect(QRectF(m, m, back, back), 2.5, 2.5)
+        painter.drawRoundedRect(QRectF(m + offset, m + offset, back, back), 2.5, 2.5)
+    elif kind == "skipped":
+        inset = w * 0.16
+        painter.drawLine(QPointF(m + inset, m + inset), QPointF(size - m - inset, size - m - inset))
+        painter.drawLine(QPointF(size - m - inset, m + inset), QPointF(m + inset, size - m - inset))
 
     painter.end()
     return pixmap
@@ -401,20 +446,19 @@ class PhotoOrganizerWindow(QMainWindow):
         panel.setObjectName("panel")
         return panel
 
-    def _make_stat_card(self, icon: str, color: str, title: str, subtitle: str) -> tuple[QFrame, QLabel]:
+    def _make_stat_card(self, kind: str, color: str, title: str, subtitle: str) -> tuple[QFrame, QLabel]:
         card = QFrame()
         card.setObjectName("statCard")
         layout = QHBoxLayout(card)
         layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(12)
 
-        tile = QLabel(icon)
+        tile = QLabel()
         tile.setObjectName("statIcon")
         tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tile.setFixedSize(38, 38)
-        tile.setStyleSheet(
-            f"background: {color}; color: #ffffff; font-size: 16px; font-weight: 800; border-radius: 10px;"
-        )
+        tile.setStyleSheet(f"background: {color}; border-radius: 10px;")
+        tile.setPixmap(draw_nav_icon(kind, "#ffffff", 18))
 
         text_col = QVBoxLayout()
         text_col.setSpacing(1)
@@ -487,16 +531,18 @@ class PhotoOrganizerWindow(QMainWindow):
         header.addStretch(1)
         self.run_button = QPushButton("Run Organizer")
         self.run_button.setObjectName("primaryButton")
+        self.run_button.setIcon(QIcon(draw_nav_icon("run", "#ffffff", 14)))
+        self.run_button.setIconSize(QSize(14, 14))
         self.run_button.clicked.connect(self.run_organizer)
-        header.addWidget(self.run_button, 0, Qt.AlignmentFlag.AlignTop)
+        header.addWidget(self.run_button, 0, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(header)
 
         stats_row = QHBoxLayout()
         stats_row.setSpacing(14)
-        found_card, self.stat_found_label = self._make_stat_card("▣", ACCENT_PURPLE, "Photos Found", "Total photos detected")
-        renamed_card, self.stat_renamed_label = self._make_stat_card("✎", ACCENT_PINK, "Renamed", "Files renamed")
-        dups_card, self.stat_dups_label = self._make_stat_card("⧉", ACCENT_ORANGE, "Duplicates", "Duplicate files found")
-        report_card, self.stat_report_label = self._make_stat_card("▤", ACCENT_GREEN, "Report Ready", "CSV report generated")
+        found_card, self.stat_found_label = self._make_stat_card("found", ACCENT_PURPLE, "Photos Found", "Total photos detected")
+        renamed_card, self.stat_renamed_label = self._make_stat_card("renamed", ACCENT_PINK, "Renamed", "Files renamed")
+        dups_card, self.stat_dups_label = self._make_stat_card("duplicates", ACCENT_ORANGE, "Duplicates", "Duplicate files found")
+        report_card, self.stat_report_label = self._make_stat_card("report", ACCENT_GREEN, "Report Ready", "CSV report generated")
         for card in (found_card, renamed_card, dups_card, report_card):
             stats_row.addWidget(card, 1)
         layout.addLayout(stats_row)
@@ -805,10 +851,10 @@ class PhotoOrganizerWindow(QMainWindow):
 
         summary_row = QHBoxLayout()
         summary_row.setSpacing(16)
-        rows_card, self.report_rows_label = self._make_stat_card("▤", ACCENT_PURPLE, "Report Rows", "Total logged actions")
-        moved_card, self.report_moved_label = self._make_stat_card("▣", ACCENT_PINK, "Moved", "Files moved")
-        dups_card, self.report_dups_label = self._make_stat_card("⧉", ACCENT_ORANGE, "Duplicates", "Duplicate files found")
-        skipped_card, self.report_skipped_label = self._make_stat_card("✖", ACCENT_GREEN, "Skipped", "Files skipped")
+        rows_card, self.report_rows_label = self._make_stat_card("report", ACCENT_PURPLE, "Report Rows", "Total logged actions")
+        moved_card, self.report_moved_label = self._make_stat_card("output", ACCENT_PINK, "Moved", "Files moved")
+        dups_card, self.report_dups_label = self._make_stat_card("duplicates", ACCENT_ORANGE, "Duplicates", "Duplicate files found")
+        skipped_card, self.report_skipped_label = self._make_stat_card("skipped", ACCENT_GREEN, "Skipped", "Files skipped")
         for card in (rows_card, moved_card, dups_card, skipped_card):
             summary_row.addWidget(card, 1)
         layout.addLayout(summary_row)
