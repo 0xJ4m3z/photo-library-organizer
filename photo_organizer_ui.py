@@ -503,7 +503,7 @@ class PhotoOrganizerWindow(QMainWindow):
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.verticalHeader().setVisible(False)
         table.setAlternatingRowColors(True)
-        table.verticalHeader().setDefaultSectionSize(30)
+        table.verticalHeader().setDefaultSectionSize(32)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -528,8 +528,8 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_run_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(22, 16, 22, 14)
-        layout.setSpacing(12)
+        layout.setContentsMargins(22, 14, 22, 10)
+        layout.setSpacing(10)
 
         header = QHBoxLayout()
         header.addLayout(self._page_header("Organize, rename, and sort your photos", "Consolidate, rename, and de-duplicate your media library."))
@@ -693,19 +693,20 @@ class PhotoOrganizerWindow(QMainWindow):
 
         # ---------------- Actions table (fixed panel, scrolls internally) ----------------
         actions_card = self._make_panel()
-        actions_card.setMinimumHeight(190)
         actions_layout = QVBoxLayout(actions_card)
-        actions_layout.setContentsMargins(18, 12, 18, 12)
-        actions_layout.setSpacing(8)
+        actions_layout.setContentsMargins(18, 13, 18, 12)
+        actions_layout.setSpacing(0)
         actions_label = QLabel("Actions")
         actions_label.setObjectName("sectionTitle")
+        actions_layout.addWidget(actions_label)
+        actions_layout.addSpacing(8)
         self.results_table = self._make_table(["Action", "From", "To", "Source / Note", "Size", "Date Modified"])
         self.results_table.setMinimumHeight(120)
         self.results_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        actions_layout.addWidget(self.results_table, 1)
+        actions_layout.addSpacing(8)
         self.results_status = QLabel("No run loaded yet.")
         self.results_status.setObjectName("muted")
-        actions_layout.addWidget(actions_label)
-        actions_layout.addWidget(self.results_table, 1)
         actions_layout.addWidget(self.results_status)
         layout.addWidget(actions_card, 1)
 
@@ -1832,13 +1833,13 @@ class PhotoOrganizerWindow(QMainWindow):
                 color: {TEXT_PRIMARY};
                 alternate-background-color: {CARD};
                 border: 1px solid {BORDER};
-                border-radius: 10px;
+                border-radius: 0;
                 gridline-color: {BORDER};
                 selection-background-color: #2a1f3d;
                 selection-color: {TEXT_PRIMARY};
             }}
             #resultsTable::item {{
-                padding: 6px;
+                padding: 6px 10px;
                 border: 0;
             }}
             QHeaderView::section {{
