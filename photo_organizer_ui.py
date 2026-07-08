@@ -214,7 +214,7 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_pages(self) -> QWidget:
         self.pages = QStackedWidget()
         self.pages.setObjectName("pages")
-        self.pages.addWidget(self._scroll_wrap(self._build_run_page()))
+        self.pages.addWidget(self._build_run_page())
         self.pages.addWidget(self._scroll_wrap(self._build_output_page()))
         self.pages.addWidget(self._scroll_wrap(self._build_report_page()))
         self.pages.addWidget(self._build_settings_page())
@@ -254,19 +254,19 @@ class PhotoOrganizerWindow(QMainWindow):
         card = QFrame()
         card.setObjectName("statCard")
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(14)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(12)
 
         tile = QLabel(icon)
         tile.setObjectName("statIcon")
         tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tile.setFixedSize(48, 48)
+        tile.setFixedSize(38, 38)
         tile.setStyleSheet(
-            f"background: {color}; color: #ffffff; font-size: 19px; font-weight: 800; border-radius: 12px;"
+            f"background: {color}; color: #ffffff; font-size: 16px; font-weight: 800; border-radius: 10px;"
         )
 
         text_col = QVBoxLayout()
-        text_col.setSpacing(2)
+        text_col.setSpacing(1)
         title_label = QLabel(title)
         title_label.setObjectName("statTitle")
         value_label = QLabel("0")
@@ -328,8 +328,8 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_run_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 26, 30, 26)
-        layout.setSpacing(20)
+        layout.setContentsMargins(22, 16, 22, 14)
+        layout.setSpacing(12)
 
         header = QHBoxLayout()
         header.addLayout(self._page_header("Organize, rename, and sort your photos", "Consolidate, rename, and de-duplicate your media library."))
@@ -341,7 +341,7 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addLayout(header)
 
         stats_row = QHBoxLayout()
-        stats_row.setSpacing(16)
+        stats_row.setSpacing(14)
         found_card, self.stat_found_label = self._make_stat_card("▣", ACCENT_PURPLE, "Photos Found", "Total photos detected")
         renamed_card, self.stat_renamed_label = self._make_stat_card("✎", ACCENT_PINK, "Renamed", "Files renamed")
         dups_card, self.stat_dups_label = self._make_stat_card("⧉", ACCENT_ORANGE, "Duplicates", "Duplicate files found")
@@ -351,50 +351,47 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addLayout(stats_row)
 
         top_row = QHBoxLayout()
-        top_row.setSpacing(16)
+        top_row.setSpacing(14)
 
         # ---------------- Workflow card ----------------
         folder_card = self._make_panel()
         folder_layout = QVBoxLayout(folder_card)
-        folder_layout.setContentsMargins(26, 24, 26, 24)
+        folder_layout.setContentsMargins(18, 14, 18, 14)
         folder_layout.setSpacing(0)
 
         workflow_title = QLabel("Workflow")
         workflow_title.setObjectName("sectionTitle")
         folder_layout.addWidget(workflow_title)
-        folder_layout.addSpacing(20)
+        folder_layout.addSpacing(10)
 
         folder_layout.addWidget(self._field_label("Source folder"))
-        folder_layout.addSpacing(6)
+        folder_layout.addSpacing(4)
         self.root_path = QLineEdit(SAMPLE_DISPLAY)
-        self.root_path.setMinimumHeight(40)
+        self.root_path.setFixedHeight(32)
         self.root_path.setToolTip(str(SAMPLE_SOURCE))
         self.root_path.textChanged.connect(self._update_folder_labels)
         self.root_path.textChanged.connect(lambda _text: self._sync_source_tooltip())
         browse = QPushButton("Browse")
         browse.setObjectName("ghostButton")
-        browse.setFixedWidth(108)
+        browse.setFixedWidth(96)
+        browse.setFixedHeight(32)
         browse.clicked.connect(self.choose_root)
         source_row = QHBoxLayout()
-        source_row.setSpacing(12)
+        source_row.setSpacing(10)
         source_row.addWidget(self.root_path, 1)
         source_row.addWidget(browse)
         folder_layout.addLayout(source_row)
-        folder_layout.addSpacing(22)
+        folder_layout.addSpacing(10)
 
         folder_layout.addWidget(self._field_label("Destination folder"))
-        folder_layout.addSpacing(6)
+        folder_layout.addSpacing(4)
         self.destination_label = QLabel()
         self.destination_label.setObjectName("pathLabel")
-        self.destination_label.setMinimumHeight(40)
+        self.destination_label.setFixedHeight(32)
         self.destination_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        self.destination_label.setToolTip("Auto-generated from the source folder + destination name (Settings).")
         folder_layout.addWidget(self.destination_label)
-        folder_layout.addSpacing(6)
-        dest_hint = QLabel("Auto-generated from the source folder + destination name (Settings).")
-        dest_hint.setObjectName("captionMuted")
-        dest_hint.setWordWrap(True)
-        folder_layout.addWidget(dest_hint)
-        folder_layout.addSpacing(22)
+        folder_layout.addSpacing(10)
 
         self.dry_run = QCheckBox("Dry run")
         self.dry_run.setChecked(True)
@@ -406,17 +403,17 @@ class PhotoOrganizerWindow(QMainWindow):
         options_row.addStretch(1)
         options_row.addWidget(self.csv_log)
         folder_layout.addLayout(options_row)
-        folder_layout.addSpacing(22)
+        folder_layout.addSpacing(10)
 
         self.status_label = QLabel("Ready.")
         self.status_label.setObjectName("statusLabel")
         folder_layout.addWidget(self.status_label)
-        folder_layout.addSpacing(12)
+        folder_layout.addSpacing(8)
 
         completion_label = QLabel("Completion")
         completion_label.setObjectName("captionMuted")
         folder_layout.addWidget(completion_label)
-        folder_layout.addSpacing(6)
+        folder_layout.addSpacing(4)
         progress_row = QHBoxLayout()
         progress_row.setSpacing(10)
         self.progress = QProgressBar()
@@ -425,11 +422,11 @@ class PhotoOrganizerWindow(QMainWindow):
         self.progress.setTextVisible(False)
         self.progress_percent_label = QLabel("0%")
         self.progress_percent_label.setObjectName("percentLabel")
-        self.progress_percent_label.setFixedWidth(42)
+        self.progress_percent_label.setFixedWidth(38)
         progress_row.addWidget(self.progress, 1)
         progress_row.addWidget(self.progress_percent_label)
         folder_layout.addLayout(progress_row)
-        folder_layout.addSpacing(16)
+        folder_layout.addSpacing(8)
 
         self.stats_label = QLabel()
         self.stats_label.setObjectName("summaryRow")
@@ -442,23 +439,23 @@ class PhotoOrganizerWindow(QMainWindow):
         # ---------------- Current image card ----------------
         preview_card = self._make_panel()
         preview_layout = QVBoxLayout(preview_card)
-        preview_layout.setContentsMargins(20, 20, 20, 20)
+        preview_layout.setContentsMargins(16, 14, 16, 14)
         preview_layout.setSpacing(0)
         preview_title = QLabel("Current image")
         preview_title.setObjectName("sectionTitle")
         preview_layout.addWidget(preview_title)
-        preview_layout.addSpacing(16)
+        preview_layout.addSpacing(10)
 
         self.preview = QLabel("Waiting for run")
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setFixedHeight(210)
+        self.preview.setFixedHeight(128)
         self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         preview_layout.addWidget(self.preview)
-        preview_layout.addSpacing(18)
+        preview_layout.addSpacing(12)
 
         meta_column = QVBoxLayout()
-        meta_column.setSpacing(12)
+        meta_column.setSpacing(8)
         name_row, self.meta_name_label = self._make_meta_row(ACCENT_PINK, "No file yet.")
         size_row, self.meta_size_label = self._make_meta_row(ACCENT_PURPLE, "—")
         date_row, self.meta_date_label = self._make_meta_row(ACCENT_ORANGE, "—")
@@ -470,16 +467,17 @@ class PhotoOrganizerWindow(QMainWindow):
         top_row.addWidget(preview_card, 2)
         layout.addLayout(top_row)
 
-        # ---------------- Actions table ----------------
+        # ---------------- Actions table (fixed panel, scrolls internally) ----------------
         actions_card = self._make_panel()
-        actions_card.setMinimumHeight(280)
+        actions_card.setMinimumHeight(190)
         actions_layout = QVBoxLayout(actions_card)
-        actions_layout.setContentsMargins(20, 18, 20, 18)
-        actions_layout.setSpacing(12)
+        actions_layout.setContentsMargins(18, 12, 18, 12)
+        actions_layout.setSpacing(8)
         actions_label = QLabel("Actions")
         actions_label.setObjectName("sectionTitle")
         self.results_table = self._make_table(["Action", "From", "To", "Source / Note", "Size", "Date Modified"])
-        self.results_table.setMinimumHeight(220)
+        self.results_table.setMinimumHeight(120)
+        self.results_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.results_status = QLabel("No run loaded yet.")
         self.results_status.setObjectName("muted")
         actions_layout.addWidget(actions_label)
@@ -1389,17 +1387,17 @@ class PhotoOrganizerWindow(QMainWindow):
             }}
             #statTitle {{
                 color: {TEXT_MUTED};
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 700;
             }}
             #statValue {{
                 color: {TEXT_PRIMARY};
-                font-size: 24px;
+                font-size: 19px;
                 font-weight: 900;
             }}
             #statSubtitle {{
                 color: {TEXT_MUTED};
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: 500;
             }}
             #pageHeaderTitle {{
