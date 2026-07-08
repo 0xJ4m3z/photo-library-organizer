@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt, QUrl
+from PySide6.QtCore import QProcess, Qt, QUrl, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -65,7 +65,6 @@ ACTION_NAMES = {"MOVE", "MOVE+RENAME", "DUP-MOVE", "DUP_MOVE", "DUP-SKIP", "DUP-
 
 # Dark neon-gradient palette shared by every widget builder / stylesheet block below.
 BG = "#0b111c"
-BG_SIDEBAR = "#08101b"
 CARD = "#141b2a"
 CARD_ALT = "#111827"
 BORDER = "#293241"
@@ -77,6 +76,14 @@ ACCENT_PURPLE = "#8b5cf6"
 ACCENT_ORANGE = "#ff6b35"
 ACCENT_GREEN = "#39d98a"
 GRADIENT_CSS = "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #d946ef, stop:0.5 #ec4899, stop:1 #f97316)"
+
+# Sidebar-specific palette (kept separate so sidebar polish never touches dashboard styling).
+SIDEBAR_GRADIENT_CSS = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #08111f, stop:1 #050b14)"
+SIDEBAR_BORDER = "#1f2937"
+NAV_ACTIVE_GRADIENT_CSS = (
+    "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c026d3, stop:0.55 #ec4899, stop:1 #ff6b35)"
+)
+LOGO_GRADIENT_CSS = f"qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {ACCENT_PINK}, stop:1 {ACCENT_ORANGE})"
 
 
 def make_item(value: str, align_center: bool = False, color: str = TEXT_PRIMARY) -> QTableWidgetItem:
@@ -130,6 +137,53 @@ def rounded_pixmap(pixmap: QPixmap, radius: int) -> QPixmap:
     return result
 
 
+class NavItem(QFrame):
+    """Clickable sidebar row: left icon, label, and a chevron shown only when active."""
+
+    clicked = Signal()
+
+    def __init__(self, icon: str, label: str) -> None:
+        super().__init__()
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 0, 14, 0)
+        layout.setSpacing(12)
+
+        self.icon_label = QLabel(icon)
+        self.icon_label.setObjectName("navIcon")
+        self.icon_label.setFixedWidth(20)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.text_label = QLabel(label)
+        self.text_label.setObjectName("navText")
+
+        self.chevron_label = QLabel("")
+        self.chevron_label.setObjectName("navChevron")
+        self.chevron_label.setFixedWidth(16)
+        self.chevron_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        layout.addWidget(self.icon_label)
+        layout.addWidget(self.text_label, 1)
+        layout.addWidget(self.chevron_label)
+
+        self.set_active(False)
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+    def set_active(self, active: bool) -> None:
+        self.setObjectName("navItemActive" if active else "navItemInactive")
+        self.setFixedHeight(56 if active else 50)
+        self.chevron_label.setText("›" if active else "")
+        for widget in (self, self.icon_label, self.text_label, self.chevron_label):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+
+
 class PhotoOrganizerWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -167,11 +221,11 @@ class PhotoOrganizerWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(240)
+        sidebar.setFixedWidth(248)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(20, 24, 20, 20)
-        layout.setSpacing(14)
+        layout.setContentsMargins(20, 22, 20, 20)
+        layout.setSpacing(0)
 
         brand_row = QHBoxLayout()
         brand_row.setSpacing(12)
@@ -183,15 +237,16 @@ class PhotoOrganizerWindow(QMainWindow):
         brand_row.addWidget(mark)
         brand_row.addWidget(title, 1)
         layout.addLayout(brand_row)
-        layout.addSpacing(12)
+        layout.addSpacing(28)
 
-        self.nav_buttons: list[QPushButton] = []
-        for idx, label in enumerate(("Run", "Output", "Report", "Settings")):
-            button = QPushButton(label)
-            button.setObjectName("navButton")
-            button.clicked.connect(lambda _checked=False, page=idx: self._select_page(page))
-            self.nav_buttons.append(button)
-            layout.addWidget(button)
+        self.nav_buttons: list[NavItem] = []
+        nav_specs = [("▶", "Run"), ("▦", "Output"), ("▤", "Report"), ("⚙", "Settings")]
+        for idx, (icon, label) in enumerate(nav_specs):
+            item = NavItem(icon, label)
+            item.clicked.connect(lambda page=idx: self._select_page(page))
+            self.nav_buttons.append(item)
+            layout.addWidget(item)
+            layout.addSpacing(14 if idx == 0 else 4)
 
         layout.addStretch(1)
 
@@ -200,12 +255,22 @@ class PhotoOrganizerWindow(QMainWindow):
         sample_layout = QVBoxLayout(sample_box)
         sample_layout.setContentsMargins(14, 14, 14, 14)
         sample_layout.setSpacing(10)
+
+        sample_header = QHBoxLayout()
+        sample_header.setSpacing(10)
+        sample_icon = QLabel("▥")
+        sample_icon.setObjectName("sampleIcon")
+        sample_icon.setFixedSize(28, 28)
+        sample_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.sample_count = QLabel("Sample files: —")
         self.sample_count.setObjectName("sideLabel")
+        sample_header.addWidget(sample_icon)
+        sample_header.addWidget(self.sample_count, 1)
+        sample_layout.addLayout(sample_header)
+
         reset = QPushButton("Reset Sample")
-        reset.setObjectName("ghostButton")
+        reset.setObjectName("resetSampleButton")
         reset.clicked.connect(self.reset_sample_library)
-        sample_layout.addWidget(self.sample_count)
         sample_layout.addWidget(reset)
         layout.addWidget(sample_box)
 
@@ -222,10 +287,8 @@ class PhotoOrganizerWindow(QMainWindow):
 
     def _select_page(self, index: int) -> None:
         self.pages.setCurrentIndex(index)
-        for button_index, button in enumerate(self.nav_buttons):
-            button.setObjectName("navActive" if button_index == index else "navButton")
-            button.style().unpolish(button)
-            button.style().polish(button)
+        for button_index, item in enumerate(self.nav_buttons):
+            item.set_active(button_index == index)
         if index == 1:
             self._refresh_output_tab()
         elif index == 2:
@@ -1293,8 +1356,8 @@ class PhotoOrganizerWindow(QMainWindow):
                 font-size: 13px;
             }}
             #sidebar {{
-                background: {BG_SIDEBAR};
-                border-right: 1px solid {BORDER};
+                background: {SIDEBAR_GRADIENT_CSS};
+                border-right: 1px solid {SIDEBAR_BORDER};
             }}
             #pages {{
                 background: {BG};
@@ -1308,36 +1371,53 @@ class PhotoOrganizerWindow(QMainWindow):
                 min-height: 44px;
                 max-width: 44px;
                 max-height: 44px;
-                border-radius: 12px;
-                background: {GRADIENT_CSS};
+                border-radius: 11px;
+                background: {LOGO_GRADIENT_CSS};
                 color: #ffffff;
                 font-size: 15px;
                 font-weight: 900;
             }}
             #brandTitle {{
                 color: {TEXT_PRIMARY};
-                font-size: 16px;
-                font-weight: 800;
+                font-size: 18px;
+                font-weight: 900;
             }}
-            #navButton, #navActive {{
-                min-height: 40px;
-                border-radius: 10px;
-                padding: 0 14px;
-                font-weight: 700;
-                text-align: left;
+            #navItemActive, #navItemInactive {{
+                border-radius: 14px;
                 border: 0;
             }}
-            #navButton {{
+            #navItemInactive {{
                 background: transparent;
-                color: {TEXT_MUTED};
             }}
-            #navButton:hover {{
+            #navItemInactive:hover {{
                 background: {CARD_ALT};
+            }}
+            #navItemActive {{
+                background: {NAV_ACTIVE_GRADIENT_CSS};
+                border: 1px solid rgba(255, 255, 255, 0.16);
+            }}
+            #navItemInactive #navIcon, #navItemInactive #navText {{
+                color: {TEXT_MUTED};
+                font-weight: 600;
+            }}
+            #navItemInactive:hover #navIcon, #navItemInactive:hover #navText {{
                 color: {TEXT_PRIMARY};
             }}
-            #navActive {{
-                background: {GRADIENT_CSS};
+            #navItemActive #navIcon, #navItemActive #navText, #navItemActive #navChevron {{
                 color: #ffffff;
+            }}
+            #navIcon {{
+                font-size: 15px;
+            }}
+            #navText {{
+                font-size: 14px;
+                font-weight: 700;
+            }}
+            #navItemActive #navText {{
+                font-weight: 800;
+            }}
+            #navChevron {{
+                font-size: 16px;
                 font-weight: 800;
             }}
             #primaryButton {{
@@ -1376,9 +1456,34 @@ class PhotoOrganizerWindow(QMainWindow):
             #statCard {{
                 background: {CARD_ALT};
             }}
+            #sideCard {{
+                background: {CARD_ALT};
+                border: 1px solid {SIDEBAR_BORDER};
+            }}
             #sideLabel {{
                 color: {TEXT_PRIMARY};
                 font-weight: 800;
+                font-size: 12px;
+            }}
+            #sampleIcon {{
+                background: {ACCENT_PINK};
+                color: #ffffff;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 800;
+            }}
+            #resetSampleButton {{
+                min-height: 36px;
+                border-radius: 9px;
+                font-weight: 700;
+                font-size: 12px;
+                border: 1px solid {ACCENT_PINK};
+                background: {BG};
+                color: {TEXT_PRIMARY};
+            }}
+            #resetSampleButton:hover {{
+                border: 1px solid {ACCENT_ORANGE};
+                color: {ACCENT_ORANGE};
             }}
             #sectionTitle {{
                 color: {TEXT_PRIMARY};
