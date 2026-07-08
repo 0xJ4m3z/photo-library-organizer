@@ -346,6 +346,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self._reset_stat_cards()
         self._refresh_output_tab()
         self._refresh_report_tab()
+        self._show_default_sample_preview()
 
     # ------------------------------------------------------------------
     # Sidebar / navigation
@@ -476,18 +477,22 @@ class PhotoOrganizerWindow(QMainWindow):
         layout.addLayout(text_col, 1)
         return card, value_label
 
-    def _make_meta_row(self, dot_color: str, initial: str) -> tuple[QWidget, QLabel]:
+    def _make_meta_row(self, dot_color: str, field: str, initial: str) -> tuple[QWidget, QLabel]:
         row = QWidget()
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         dot = QLabel("●")
-        dot.setFixedWidth(14)
-        dot.setStyleSheet(f"color: {dot_color}; font-size: 11px;")
+        dot.setFixedWidth(12)
+        dot.setStyleSheet(f"color: {dot_color}; font-size: 10px;")
+        field_label = QLabel(field)
+        field_label.setObjectName("metaField")
+        field_label.setFixedWidth(88)
         value_label = QLabel(initial)
         value_label.setObjectName("metaValue")
         value_label.setWordWrap(True)
         layout.addWidget(dot)
+        layout.addWidget(field_label)
         layout.addWidget(value_label, 1)
         return row, value_label
 
@@ -587,7 +592,17 @@ class PhotoOrganizerWindow(QMainWindow):
         self.destination_label.setFixedHeight(32)
         self.destination_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         self.destination_label.setToolTip("Auto-generated from the source folder + destination name (Settings).")
-        folder_layout.addWidget(self.destination_label)
+        dest_browse = QPushButton("Browse")
+        dest_browse.setObjectName("ghostButton")
+        dest_browse.setFixedWidth(96)
+        dest_browse.setFixedHeight(32)
+        dest_browse.setToolTip("Choose a destination folder name (created under the source folder).")
+        dest_browse.clicked.connect(self.choose_destination)
+        dest_row = QHBoxLayout()
+        dest_row.setSpacing(10)
+        dest_row.addWidget(self.destination_label, 1)
+        dest_row.addWidget(dest_browse)
+        folder_layout.addLayout(dest_row)
         folder_layout.addSpacing(10)
 
         self.dry_run = QCheckBox("Dry run")
@@ -643,26 +658,38 @@ class PhotoOrganizerWindow(QMainWindow):
         preview_layout.addWidget(preview_title)
         preview_layout.addSpacing(10)
 
-        self.preview = QLabel("Waiting for run")
+        self.preview = QLabel()
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setFixedHeight(128)
         self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         preview_layout.addWidget(self.preview)
-        preview_layout.addSpacing(12)
+        preview_layout.addSpacing(10)
+
+        self.preview_heading = QLabel("Waiting for preview")
+        self.preview_heading.setObjectName("previewHeading")
+        preview_layout.addWidget(self.preview_heading)
+        preview_layout.addSpacing(2)
+        self.preview_hint = QLabel("Run the organizer or select a sample image to preview details.")
+        self.preview_hint.setObjectName("captionMuted")
+        self.preview_hint.setWordWrap(True)
+        preview_layout.addWidget(self.preview_hint)
+        preview_layout.addSpacing(10)
 
         meta_column = QVBoxLayout()
         meta_column.setSpacing(8)
-        name_row, self.meta_name_label = self._make_meta_row(ACCENT_PINK, "No file yet.")
-        size_row, self.meta_size_label = self._make_meta_row(ACCENT_PURPLE, "—")
-        date_row, self.meta_date_label = self._make_meta_row(ACCENT_ORANGE, "—")
-        dims_row, self.meta_dims_label = self._make_meta_row(ACCENT_GREEN, "—")
+        name_row, self.meta_name_label = self._make_meta_row(ACCENT_PINK, "File", "—")
+        size_row, self.meta_size_label = self._make_meta_row(ACCENT_PURPLE, "Size", "—")
+        date_row, self.meta_date_label = self._make_meta_row(ACCENT_ORANGE, "Date", "—")
+        dims_row, self.meta_dims_label = self._make_meta_row(ACCENT_GREEN, "Dimensions", "—")
         for row in (name_row, size_row, date_row, dims_row):
             meta_column.addWidget(row)
         preview_layout.addLayout(meta_column)
         preview_layout.addStretch(1)
         top_row.addWidget(preview_card, 2)
         layout.addLayout(top_row)
+
+        self._set_preview_empty()
 
         # ---------------- Actions table (fixed panel, scrolls internally) ----------------
         actions_card = self._make_panel()
@@ -1034,6 +1061,23 @@ class PhotoOrganizerWindow(QMainWindow):
             self._update_sample_count()
             self._update_folder_labels()
 
+    def choose_destination(self) -> None:
+        root = self._root_from_field()
+        current_name = self.dest_name.text().strip()
+        start_dir = root / current_name if current_name else root
+        folder = QFileDialog.getExistingDirectory(
+            self, "Choose destination folder", str(start_dir if start_dir.exists() else root)
+        )
+        if not folder:
+            return
+        selected = Path(folder)
+        try:
+            name = str(selected.resolve().relative_to(root.resolve()))
+        except ValueError:
+            name = selected.name
+        self.dest_name.setText(name or "all_photos")
+        self._update_folder_labels()
+
     def reset_sample_library(self) -> None:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             QMessageBox.information(self, "Run in progress", "Stop the current run before resetting the sample library.")
@@ -1046,12 +1090,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.results_table.setRowCount(0)
         self.results_status.setText("Sample library reset.")
         self.status_label.setText("Sample library reset. Ready.")
-        self.preview.setText("Waiting for run")
-        self.preview.setPixmap(QPixmap())
-        self.meta_name_label.setText("No file yet.")
-        self.meta_size_label.setText("—")
-        self.meta_date_label.setText("—")
-        self.meta_dims_label.setText("—")
+        self._set_preview_empty()
+        self._show_default_sample_preview()
         self.progress.setValue(0)
         self.progress_percent_label.setText("0%")
         self._set_summary_row(0, 0, 0, 0)
@@ -1105,12 +1145,8 @@ class PhotoOrganizerWindow(QMainWindow):
         self.process.errorOccurred.connect(self._process_error)
 
         self.results_table.setRowCount(0)
-        self.preview.setText("Waiting for first file")
-        self.preview.setPixmap(QPixmap())
-        self.meta_name_label.setText("No file yet.")
-        self.meta_size_label.setText("—")
-        self.meta_date_label.setText("—")
-        self.meta_dims_label.setText("—")
+        self._set_preview_empty()
+        self.preview_heading.setText("Waiting for first file")
         self.progress.setValue(0)
         self.progress_percent_label.setText("0%")
         self.status_label.setText("Starting...")
@@ -1243,12 +1279,28 @@ class PhotoOrganizerWindow(QMainWindow):
             self.results_table.setItem(row_idx, col_idx, make_item(value, align_center=col_idx == 0, color=color))
         self.results_table.scrollToBottom()
 
+    def _set_preview_placeholder(self) -> None:
+        icon = draw_nav_icon("found", TEXT_MUTED, 40)
+        self.preview.setPixmap(icon)
+
+    def _set_preview_empty(self) -> None:
+        self._set_preview_placeholder()
+        self.preview_heading.setText("Waiting for preview")
+        self.preview_heading.setVisible(True)
+        self.preview_hint.setVisible(True)
+        self.meta_name_label.setText("—")
+        self.meta_name_label.setToolTip("")
+        self.meta_size_label.setText("—")
+        self.meta_date_label.setText("—")
+        self.meta_dims_label.setText("—")
+
     def _show_current_media(self, path: Path) -> None:
+        self.preview_heading.setVisible(False)
+        self.preview_hint.setVisible(False)
         self.meta_name_label.setText(path.name)
         self.meta_name_label.setToolTip(str(path))
         if not path.exists():
-            self.preview.setPixmap(QPixmap())
-            self.preview.setText(path.name)
+            self._set_preview_placeholder()
             self.meta_size_label.setText("—")
             self.meta_date_label.setText("—")
             self.meta_dims_label.setText("—")
@@ -1256,33 +1308,28 @@ class PhotoOrganizerWindow(QMainWindow):
 
         stat = path.stat()
         self.meta_size_label.setText(format_size(str(stat.st_size)))
-        self.meta_date_label.setText(datetime.fromtimestamp(stat.st_mtime).strftime("%b %d, %Y %I:%M %p"))
+        self.meta_date_label.setText(datetime.fromtimestamp(stat.st_mtime).strftime("%b %d, %Y"))
 
         if path.suffix.lower() not in IMAGE_EXTS:
-            self.preview.setPixmap(QPixmap())
-            self.preview.setText(path.name)
+            self._set_preview_placeholder()
             self.meta_dims_label.setText("—")
             return
         try:
             image_bytes = path.read_bytes()
         except OSError:
-            self.preview.setPixmap(QPixmap())
-            self.preview.setText(path.name)
+            self._set_preview_placeholder()
             self.meta_dims_label.setText("—")
             return
         image = QImage()
         if not image.loadFromData(image_bytes):
-            self.preview.setPixmap(QPixmap())
-            self.preview.setText(path.name)
+            self._set_preview_placeholder()
             self.meta_dims_label.setText("—")
             return
         self.meta_dims_label.setText(f"{image.width()} × {image.height()}")
         pixmap = QPixmap.fromImage(image)
         if pixmap.isNull():
-            self.preview.setPixmap(QPixmap())
-            self.preview.setText(path.name)
+            self._set_preview_placeholder()
             return
-        self.preview.setText("")
         self.preview.setPixmap(
             rounded_pixmap(
                 pixmap.scaled(
@@ -1293,6 +1340,25 @@ class PhotoOrganizerWindow(QMainWindow):
                 10,
             )
         )
+
+    def _show_default_sample_preview(self) -> None:
+        if not SAMPLE_SOURCE.exists():
+            return
+        files = [
+            path
+            for path in SAMPLE_SOURCE.iterdir()
+            if path.is_file() and path.suffix.lower() in TARGET_EXTS
+        ]
+        if not files:
+            return
+
+        def sample_key(path: Path) -> tuple[int, str]:
+            try:
+                return int(path.stem), path.name
+            except ValueError:
+                return 10_000, path.name
+
+        self._show_current_media(sorted(files, key=sample_key)[0])
 
     def _resolve_preview_path(self, source_path: Path, destination_path: Path | None) -> Path | None:
         if source_path.exists():
@@ -1662,6 +1728,16 @@ class PhotoOrganizerWindow(QMainWindow):
             #metaValue {{
                 color: {TEXT_PRIMARY};
                 font-weight: 700;
+            }}
+            #metaField {{
+                color: {TEXT_MUTED};
+                font-weight: 600;
+                font-size: 12px;
+            }}
+            #previewHeading {{
+                color: {TEXT_PRIMARY};
+                font-size: 13px;
+                font-weight: 800;
             }}
             #captionMuted {{
                 color: {TEXT_MUTED};
