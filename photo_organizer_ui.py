@@ -228,19 +228,27 @@ def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
         )
         painter.drawPolyline(mountain)
     elif kind == "renamed":
+        # Classic pencil silhouette: eraser cap + wooden shaft + graphite tip.
         painter.setBrush(QColor(color))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.save()
         painter.translate(size / 2, size / 2)
         painter.rotate(-45)
-        body_len = w * 0.7
-        body_w = w * 0.2
-        painter.drawRoundedRect(QRectF(-body_len / 2, -body_w / 2, body_len * 0.7, body_w), 1.5, 1.5)
+        body_len = w * 0.92
+        body_w = w * 0.16
+        cap_len = body_len * 0.16
+        shaft_len = body_len * 0.58
+        x0 = -body_len / 2
+        x1 = x0 + cap_len
+        x2 = x1 + shaft_len
+        x3 = body_len / 2
+        painter.drawRoundedRect(QRectF(x0, -body_w / 2, cap_len, body_w), 1.2, 1.2)
+        painter.drawRect(QRectF(x1, -body_w / 2, x2 - x1, body_w))
         tip = QPolygonF(
             [
-                QPointF(body_len * 0.2, -body_w / 2),
-                QPointF(body_len * 0.2, body_w / 2),
-                QPointF(body_len / 2, 0),
+                QPointF(x2, -body_w / 2),
+                QPointF(x2, body_w / 2),
+                QPointF(x3, 0),
             ]
         )
         painter.drawPolygon(tip)
@@ -579,7 +587,7 @@ class PhotoOrganizerWindow(QMainWindow):
         tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tile.setFixedSize(38, 38)
         tile.setStyleSheet(f"background: {color}; border-radius: 10px;")
-        tile.setPixmap(draw_nav_icon(kind, "#ffffff", 18))
+        tile.setPixmap(draw_nav_icon(kind, "#ffffff", 24))
 
         text_col = QVBoxLayout()
         text_col.setSpacing(1)
@@ -1680,7 +1688,7 @@ class PhotoOrganizerWindow(QMainWindow):
                 border-radius: 10px;
                 background: {LOGO_GRADIENT_CSS};
                 color: #ffffff;
-                font-size: 14px;
+                font-size: 17px;
                 font-weight: 900;
             }}
             #brandTitle {{
