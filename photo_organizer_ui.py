@@ -229,11 +229,12 @@ def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
         painter.drawPolyline(mountain)
     elif kind == "renamed":
         # Line-art pencil (outline only, like a simplified pencil emoji):
-        # flat eraser end, angled body, tip line, and a small graphite point.
+        # eraser band, wood shaft, angled tip line, and a graphite point,
+        # oriented so the point aims down-left (classic "edit" pencil pose).
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.save()
         painter.translate(size / 2, size / 2)
-        painter.rotate(-45)
+        painter.rotate(135)
         body_len = w * 0.98
         body_w = w * 0.24
         tip_len = body_len * 0.3
@@ -250,11 +251,16 @@ def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
             ]
         )
         painter.drawPolyline(body + QPolygonF([QPointF(x0, -body_w / 2)]))
+        # tip/shaft division line
         tip_cut = x1 + tip_len * 0.4
         painter.drawLine(QPointF(tip_cut, -body_w * 0.4), QPointF(tip_cut, body_w * 0.4))
+        # eraser/shaft division line, near the blunt end
+        eraser_cut = x0 + body_len * 0.15
+        painter.drawLine(QPointF(eraser_cut, -body_w / 2), QPointF(eraser_cut, body_w / 2))
+        # graphite lead point
         painter.setBrush(QColor(color))
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(QPointF(x2 - tip_len * 0.06, 0), body_w * 0.09, body_w * 0.09)
+        painter.drawEllipse(QPointF(x2 - tip_len * 0.08, 0), body_w * 0.12, body_w * 0.12)
         painter.restore()
     elif kind == "duplicates":
         back = w * 0.66
