@@ -705,7 +705,7 @@ class PhotoOrganizerWindow(QMainWindow):
         workflow_title = QLabel("Workflow")
         workflow_title.setObjectName("sectionTitle")
         folder_layout.addWidget(workflow_title)
-        folder_layout.addSpacing(6)
+        folder_layout.addSpacing(18)
 
         folder_layout.addWidget(self._field_label("Source folder"))
         folder_layout.addSpacing(4)
