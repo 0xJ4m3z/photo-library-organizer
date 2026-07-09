@@ -780,21 +780,15 @@ class PhotoOrganizerWindow(QMainWindow):
 
         self.preview = ImagePreviewLabel()
         self.preview.setObjectName("preview")
+        self.preview.setToolTip("Waiting for preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setMinimumHeight(230)
-        self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        preview_layout.addWidget(self.preview, 1)
-        preview_layout.addSpacing(8)
-
-        self.preview_heading = QLabel("Waiting for preview")
-        self.preview_heading.setObjectName("previewHeading")
-        preview_layout.addWidget(self.preview_heading)
-        preview_layout.addSpacing(2)
-        self.preview_hint = QLabel("Run the organizer or select a sample image to preview details.")
-        self.preview_hint.setObjectName("captionMuted")
-        self.preview_hint.setWordWrap(True)
-        preview_layout.addWidget(self.preview_hint)
-        preview_layout.addSpacing(8)
+        # Fixed height (not just a minimum) so the box never resizes between
+        # empty/loaded/post-run states - only its *contents* change per state.
+        self.preview.setFixedHeight(230)
+        self.preview.setMinimumWidth(260)
+        self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        preview_layout.addWidget(self.preview)
+        preview_layout.addSpacing(10)
 
         meta_column = QVBoxLayout()
         meta_column.setSpacing(5)
@@ -805,6 +799,7 @@ class PhotoOrganizerWindow(QMainWindow):
         for row in (name_row, size_row, date_row, dims_row):
             meta_column.addWidget(row)
         preview_layout.addLayout(meta_column)
+        preview_layout.addStretch(1)
         top_row.addWidget(preview_card, 2)
         layout.addLayout(top_row, 2)
 
@@ -1266,7 +1261,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
         self.results_table.setRowCount(0)
         self._set_preview_empty()
-        self.preview_heading.setText("Waiting for first file")
+        self.preview.setToolTip("Waiting for first file")
         self.progress.setValue(0)
         self.progress_percent_label.setText("0%")
         self.status_label.setText("Starting...")
@@ -1405,9 +1400,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
     def _set_preview_empty(self) -> None:
         self._set_preview_placeholder()
-        self.preview_heading.setText("Waiting for preview")
-        self.preview_heading.setVisible(True)
-        self.preview_hint.setVisible(True)
+        self.preview.setToolTip("Waiting for preview")
         self.meta_name_label.setText("—")
         self.meta_name_label.setToolTip("")
         self.meta_size_label.setText("—")
@@ -1415,8 +1408,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.meta_dims_label.setText("—")
 
     def _show_current_media(self, path: Path) -> None:
-        self.preview_heading.setVisible(False)
-        self.preview_hint.setVisible(False)
+        self.preview.setToolTip(str(path))
         self.meta_name_label.setText(path.name)
         self.meta_name_label.setToolTip(str(path))
         if not path.exists():
@@ -1847,11 +1839,6 @@ class PhotoOrganizerWindow(QMainWindow):
                 color: {TEXT_MUTED};
                 font-weight: 600;
                 font-size: 12px;
-            }}
-            #previewHeading {{
-                color: {TEXT_PRIMARY};
-                font-size: 13px;
-                font-weight: 800;
             }}
             #captionMuted {{
                 color: {TEXT_MUTED};
