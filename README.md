@@ -1,11 +1,25 @@
 # `Photo Library Organizer`
 
-A Windows-friendly Python tool made to safely organize large photo and video libraries by consolidating files, standardizing filenames, and isolating duplicates when found.
+Photo Library Organizer is a Python desktop utility for organizing, renaming, previewing, and reporting on photo libraries. It includes dry-run support, CSV report output, image preview, and an in-app actions log.
 
-![Photo Library Organizer desktop UI](screenshots/photo-library-organizer-ui.png)
+![Photo Library Organizer desktop UI](screenshots/photo-library-organizer-ui-dark.png)
+
+**Tech stack:** Python · Desktop UI · File Automation · CSV Reports · Image Preview
 
 **No re-encoding. No quality loss.**  
 Files are only **moved and renamed**.
+
+---
+
+## Features
+
+- Organize and rename photo files
+- Preview selected images inside the app
+- Run in dry-run mode before changing files
+- Generate CSV report logs
+- Review planned/completed actions in an in-app table
+- Browse output and report views from the sidebar
+- Includes sample files for local testing
 
 ---
 
