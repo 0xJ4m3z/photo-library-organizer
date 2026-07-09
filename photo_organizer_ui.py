@@ -682,13 +682,13 @@ class PhotoOrganizerWindow(QMainWindow):
         # ---------------- Workflow card ----------------
         folder_card = self._make_panel()
         folder_layout = QVBoxLayout(folder_card)
-        folder_layout.setContentsMargins(16, 12, 16, 12)
+        folder_layout.setContentsMargins(14, 10, 14, 10)
         folder_layout.setSpacing(0)
 
         workflow_title = QLabel("Workflow")
         workflow_title.setObjectName("sectionTitle")
         folder_layout.addWidget(workflow_title)
-        folder_layout.addSpacing(8)
+        folder_layout.addSpacing(6)
 
         folder_layout.addWidget(self._field_label("Source folder"))
         folder_layout.addSpacing(4)
@@ -707,7 +707,7 @@ class PhotoOrganizerWindow(QMainWindow):
         source_row.addWidget(self.root_path, 1)
         source_row.addWidget(browse)
         folder_layout.addLayout(source_row)
-        folder_layout.addSpacing(8)
+        folder_layout.addSpacing(6)
 
         folder_layout.addWidget(self._field_label("Destination folder"))
         folder_layout.addSpacing(4)
@@ -727,7 +727,7 @@ class PhotoOrganizerWindow(QMainWindow):
         dest_row.addWidget(self.destination_label, 1)
         dest_row.addWidget(dest_browse)
         folder_layout.addLayout(dest_row)
-        folder_layout.addSpacing(8)
+        folder_layout.addSpacing(6)
 
         self.dry_run = QCheckBox("Dry run")
         self.dry_run.setChecked(True)
@@ -739,12 +739,12 @@ class PhotoOrganizerWindow(QMainWindow):
         options_row.addStretch(1)
         options_row.addWidget(self.csv_log)
         folder_layout.addLayout(options_row)
-        folder_layout.addSpacing(8)
+        folder_layout.addSpacing(6)
 
         self.status_label = QLabel("Ready.")
         self.status_label.setObjectName("statusLabel")
         folder_layout.addWidget(self.status_label)
-        folder_layout.addSpacing(6)
+        folder_layout.addSpacing(5)
 
         progress_row = QHBoxLayout()
         progress_row.setSpacing(10)
@@ -758,7 +758,7 @@ class PhotoOrganizerWindow(QMainWindow):
         progress_row.addWidget(self.progress, 1)
         progress_row.addWidget(self.progress_percent_label)
         folder_layout.addLayout(progress_row)
-        folder_layout.addSpacing(6)
+        folder_layout.addSpacing(5)
 
         self.stats_label = QLabel()
         self.stats_label.setObjectName("summaryRow")
@@ -771,12 +771,12 @@ class PhotoOrganizerWindow(QMainWindow):
         # ---------------- Current image card ----------------
         preview_card = self._make_panel()
         preview_layout = QVBoxLayout(preview_card)
-        preview_layout.setContentsMargins(14, 12, 14, 12)
+        preview_layout.setContentsMargins(12, 10, 12, 10)
         preview_layout.setSpacing(0)
         preview_title = QLabel("Current image")
         preview_title.setObjectName("sectionTitle")
         preview_layout.addWidget(preview_title)
-        preview_layout.addSpacing(8)
+        preview_layout.addSpacing(6)
 
         self.preview = ImagePreviewLabel()
         self.preview.setObjectName("preview")
@@ -788,10 +788,10 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview.setMinimumWidth(260)
         self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         preview_layout.addWidget(self.preview)
-        preview_layout.addSpacing(10)
+        preview_layout.addSpacing(8)
 
         meta_column = QVBoxLayout()
-        meta_column.setSpacing(5)
+        meta_column.setSpacing(3)
         name_row, self.meta_name_label = self._make_meta_row(ACCENT_PINK, "File", "—")
         size_row, self.meta_size_label = self._make_meta_row(ACCENT_PURPLE, "Size", "—")
         date_row, self.meta_date_label = self._make_meta_row(ACCENT_ORANGE, "Date", "—")
@@ -801,7 +801,7 @@ class PhotoOrganizerWindow(QMainWindow):
         preview_layout.addLayout(meta_column)
         preview_layout.addStretch(1)
         top_row.addWidget(preview_card, 2)
-        layout.addLayout(top_row, 2)
+        layout.addLayout(top_row, 3)
 
         self._set_preview_empty()
 
@@ -815,14 +815,14 @@ class PhotoOrganizerWindow(QMainWindow):
         actions_layout.addWidget(actions_label)
         actions_layout.addSpacing(8)
         self.results_table = self._make_table(["Action", "From", "To", "Source / Note", "Size", "Date Modified"])
-        self.results_table.setMinimumHeight(110)
+        self.results_table.setMinimumHeight(90)
         self.results_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         actions_layout.addWidget(self.results_table, 1)
         actions_layout.addSpacing(8)
         self.results_status = QLabel("No run loaded yet.")
         self.results_status.setObjectName("muted")
         actions_layout.addWidget(self.results_status)
-        layout.addWidget(actions_card, 3)
+        layout.addWidget(actions_card, 2)
 
         return page
 
@@ -1834,6 +1834,7 @@ class PhotoOrganizerWindow(QMainWindow):
             #metaValue {{
                 color: {TEXT_PRIMARY};
                 font-weight: 700;
+                font-size: 12px;
             }}
             #metaField {{
                 color: {TEXT_MUTED};
