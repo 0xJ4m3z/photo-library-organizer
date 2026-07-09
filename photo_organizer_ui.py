@@ -228,30 +228,33 @@ def draw_nav_icon(kind: str, color: str, size: int = 20) -> QPixmap:
         )
         painter.drawPolyline(mountain)
     elif kind == "renamed":
-        # Classic pencil silhouette: eraser cap + wooden shaft + graphite tip.
-        painter.setBrush(QColor(color))
-        painter.setPen(Qt.PenStyle.NoPen)
+        # Line-art pencil (outline only, like a simplified pencil emoji):
+        # flat eraser end, angled body, tip line, and a small graphite point.
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.save()
         painter.translate(size / 2, size / 2)
         painter.rotate(-45)
-        body_len = w * 0.92
-        body_w = w * 0.16
-        cap_len = body_len * 0.16
-        shaft_len = body_len * 0.58
+        body_len = w * 0.98
+        body_w = w * 0.24
+        tip_len = body_len * 0.3
         x0 = -body_len / 2
-        x1 = x0 + cap_len
-        x2 = x1 + shaft_len
-        x3 = body_len / 2
-        painter.drawRoundedRect(QRectF(x0, -body_w / 2, cap_len, body_w), 1.2, 1.2)
-        painter.drawRect(QRectF(x1, -body_w / 2, x2 - x1, body_w))
-        tip = QPolygonF(
+        x1 = body_len / 2 - tip_len
+        x2 = body_len / 2
+        body = QPolygonF(
             [
-                QPointF(x2, -body_w / 2),
-                QPointF(x2, body_w / 2),
-                QPointF(x3, 0),
+                QPointF(x0, -body_w / 2),
+                QPointF(x1, -body_w / 2),
+                QPointF(x2, 0),
+                QPointF(x1, body_w / 2),
+                QPointF(x0, body_w / 2),
             ]
         )
-        painter.drawPolygon(tip)
+        painter.drawPolyline(body + QPolygonF([QPointF(x0, -body_w / 2)]))
+        tip_cut = x1 + tip_len * 0.4
+        painter.drawLine(QPointF(tip_cut, -body_w * 0.4), QPointF(tip_cut, body_w * 0.4))
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QPointF(x2 - tip_len * 0.06, 0), body_w * 0.09, body_w * 0.09)
         painter.restore()
     elif kind == "duplicates":
         back = w * 0.66
