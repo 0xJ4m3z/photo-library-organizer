@@ -287,19 +287,18 @@ def checkmark_asset_path() -> str:
     return str(tmp_path).replace("\\", "/")
 
 
-class HeroGlowWidget(QWidget):
-    """Soft atmospheric pink/purple/orange glow painted behind the Run page.
+class RunPageBackground(QWidget):
+    """Run page container that paints the atmospheric glow as its own background.
 
-    Sized to the whole page (not just the header/stat row) so every gradient
-    has room to fade fully to transparent before it reaches an edge - a QSS
-    background on a tightly-sized widget reads as a hard rectangle, this
-    doesn't.
+    An earlier version stacked a separate glow widget behind a content
+    widget via QGridLayout so the gradient had the whole page to fade
+    into. That extra nesting level turned out to break minimum-size
+    propagation up to the QStackedWidget (widgets could be told to grow
+    without the outer layout ever reserving the room, producing real
+    overlaps). Painting the glow directly in this widget's own
+    paintEvent avoids the nesting entirely - children added via a normal
+    QVBoxLayout on this widget behave exactly like on a plain QWidget.
     """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -331,6 +330,7 @@ class HeroGlowWidget(QWidget):
             painter.setBrush(QColor(255, 255, 255, alpha))
             painter.drawEllipse(QPointF(w * fx, h * fy), radius, radius)
         painter.end()
+        super().paintEvent(event)
 
 
 class ImagePreviewLabel(QLabel):
@@ -443,7 +443,7 @@ class PhotoOrganizerWindow(QMainWindow):
 
         self.setWindowTitle("Photo Library Organizer")
         self.resize(1320, 880)
-        self.setMinimumSize(1100, 680)
+        self.setMinimumSize(1100, 720)
 
         shell = QWidget()
         self.setCentralWidget(shell)
@@ -650,10 +650,8 @@ class PhotoOrganizerWindow(QMainWindow):
         return label
 
     def _build_run_page(self) -> QWidget:
-        content = QWidget()
-        content.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        layout = QVBoxLayout(content)
+        page = RunPageBackground()
+        layout = QVBoxLayout(page)
         layout.setContentsMargins(22, 14, 22, 10)
         layout.setSpacing(10)
 
@@ -783,7 +781,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview = ImagePreviewLabel()
         self.preview.setObjectName("preview")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setMinimumHeight(190)
+        self.preview.setMinimumHeight(230)
         self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         preview_layout.addWidget(self.preview, 1)
         preview_layout.addSpacing(8)
@@ -799,7 +797,7 @@ class PhotoOrganizerWindow(QMainWindow):
         preview_layout.addSpacing(8)
 
         meta_column = QVBoxLayout()
-        meta_column.setSpacing(7)
+        meta_column.setSpacing(5)
         name_row, self.meta_name_label = self._make_meta_row(ACCENT_PINK, "File", "—")
         size_row, self.meta_size_label = self._make_meta_row(ACCENT_PURPLE, "Size", "—")
         date_row, self.meta_date_label = self._make_meta_row(ACCENT_ORANGE, "Date", "—")
@@ -822,7 +820,7 @@ class PhotoOrganizerWindow(QMainWindow):
         actions_layout.addWidget(actions_label)
         actions_layout.addSpacing(8)
         self.results_table = self._make_table(["Action", "From", "To", "Source / Note", "Size", "Date Modified"])
-        self.results_table.setMinimumHeight(150)
+        self.results_table.setMinimumHeight(110)
         self.results_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         actions_layout.addWidget(self.results_table, 1)
         actions_layout.addSpacing(8)
@@ -831,15 +829,6 @@ class PhotoOrganizerWindow(QMainWindow):
         actions_layout.addWidget(self.results_status)
         layout.addWidget(actions_card, 3)
 
-        # Full-page decorative glow behind everything, so its gradients have
-        # room to fade to nothing before hitting an edge (see HeroGlowWidget).
-        glow = HeroGlowWidget()
-        page = QWidget()
-        page_grid = QGridLayout(page)
-        page_grid.setContentsMargins(0, 0, 0, 0)
-        page_grid.addWidget(glow, 0, 0)
-        page_grid.addWidget(content, 0, 0)
-        glow.lower()
         return page
 
     # ------------------------------------------------------------------
