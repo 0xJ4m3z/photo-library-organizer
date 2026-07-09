@@ -766,7 +766,7 @@ class PhotoOrganizerWindow(QMainWindow):
         folder_layout.addWidget(self.stats_label)
         self._set_summary_row(0, 0, 0, 0)
         folder_layout.addStretch(1)
-        top_row.addWidget(folder_card, 5)
+        top_row.addWidget(folder_card, 3)
 
         # ---------------- Current image card ----------------
         preview_card = self._make_panel()
@@ -784,7 +784,7 @@ class PhotoOrganizerWindow(QMainWindow):
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Fixed height (not just a minimum) so the box never resizes between
         # empty/loaded/post-run states - only its *contents* change per state.
-        self.preview.setFixedHeight(230)
+        self.preview.setFixedHeight(190)
         self.preview.setMinimumWidth(260)
         self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         preview_layout.addWidget(self.preview)
@@ -815,7 +815,7 @@ class PhotoOrganizerWindow(QMainWindow):
         actions_layout.addWidget(actions_label)
         actions_layout.addSpacing(8)
         self.results_table = self._make_table(["Action", "From", "To", "Source / Note", "Size", "Date Modified"])
-        self.results_table.setMinimumHeight(90)
+        self.results_table.setMinimumHeight(130)
         self.results_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         actions_layout.addWidget(self.results_table, 1)
         actions_layout.addSpacing(8)
